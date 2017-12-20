@@ -1,33 +1,28 @@
-#include <windows.h>
-#include <assert.h>
+
 
 class FrameQueue
 {
 public:
 	static const unsigned int cnMaximumSize = 20;
 
-	FrameQueue() : hEvent_(0), nReadPosition_(0), nFramesInQueue_(0), bEndOfDecode_(0)
+	FrameQueue() : nReadPosition_(0), nFramesInQueue_(0)
 	{
-		hEvent_ = CreateEvent(NULL, false, false, NULL);
 		InitializeCriticalSection(&oCriticalSection_);
 		memset(aDisplayQueue_, 0, cnMaximumSize * sizeof(CUVIDPARSERDISPINFO));
-		memset((void *)aIsFrameInUse_, 0, cnMaximumSize * sizeof(int));
+		memset((void *)aIsFrameInUse_, 0, cnMaximumSize * sizeof(bool));
+		stopped = false;
 	}
 
 	virtual ~FrameQueue()
 	{
 		DeleteCriticalSection(&oCriticalSection_);
-		CloseHandle(hEvent_);
 	}
 
 	void enqueue(const CUVIDPARSERDISPINFO *pPicParams)
 	{
-		// Mark the frame as 'in-use' so we don't re-use it for decoding until it is no longer needed
-		// for display
 		aIsFrameInUse_[pPicParams->picture_index] = true;
 
-		// Wait until we have a free entry in the display queue (should never block if we have enough entries)
-		do
+		while (!stopped)
 		{
 			bool bPlacedFrame = false;
 			EnterCriticalSection(&oCriticalSection_);
@@ -39,6 +34,8 @@ public:
 				nFramesInQueue_++;
 				bPlacedFrame = true;
 			}
+			else
+				assert(0);
 
 			LeaveCriticalSection(&oCriticalSection_);
 
@@ -46,9 +43,15 @@ public:
 				break;
 
 			Sleep(1);   // Wait a bit
-		} while (!bEndOfDecode_);
+		}
+	}
 
-		SetEvent(hEvent_);
+	CUvideotimestamp Peek()
+	{
+		while (nFramesInQueue_ == 0)
+			Sleep(1);
+
+		return aDisplayQueue_[nReadPosition_].timestamp;
 	}
 
 	bool dequeue(CUVIDPARSERDISPINFO *pDisplayInfo)
@@ -62,6 +65,8 @@ public:
 		{
 			int iEntry = nReadPosition_;
 			*pDisplayInfo = aDisplayQueue_[iEntry];
+			//printf("Dequeue PTS = %lld\n", pDisplayInfo->timestamp);
+
 			nReadPosition_ = (iEntry + 1) % cnMaximumSize;
 			nFramesInQueue_--;
 			bHaveNewFrame = true;
@@ -72,51 +77,36 @@ public:
 		return bHaveNewFrame;
 	}
 
-	void releaseFrame(const CUVIDPARSERDISPINFO *pPicParams)
+	void releaseFrame(int nPictureIndex)
 	{
-		aIsFrameInUse_[pPicParams->picture_index] = false;
+		aIsFrameInUse_[nPictureIndex] = false;
 	}
 
-	bool isInUse(int nPictureIndex) const
+	void waitUntilFrameAvailable(int nPictureIndex)
 	{
-		return (0 != aIsFrameInUse_[nPictureIndex]);
+		while (aIsFrameInUse_[nPictureIndex] && !stopped)
+			Sleep(1);
 	}
 
-	bool isEndOfDecode() const
+	void Stop()
 	{
-		return (0 != bEndOfDecode_);
+		stopped = true;
 	}
 
-	void endDecode()
+	void Start()
 	{
-		bEndOfDecode_ = true;
-		SetEvent(hEvent_);  // Signal for the display thread
-	}
+		for (int i = 0; i < cnMaximumSize; i++)
+			releaseFrame(i);
 
-	bool isEmpty() 
-	{ 
-		return nFramesInQueue_ == 0; 
-	}
-
-	bool waitUntilFrameAvailable(int nPictureIndex)
-	{
-		while (isInUse(nPictureIndex))
-		{
-			Sleep(1);   // Decoder is getting too far ahead from display
-
-			if (isEndOfDecode())
-				return false;
-		}
-
-		return true;
+		nReadPosition_ = nFramesInQueue_ = 0;
+		stopped = false;
 	}
 
 private:
-	HANDLE hEvent_;
+	bool stopped;
 	CRITICAL_SECTION    oCriticalSection_;
 	volatile int        nReadPosition_;
 	volatile int        nFramesInQueue_;
 	CUVIDPARSERDISPINFO aDisplayQueue_[cnMaximumSize];
-	volatile int        aIsFrameInUse_[cnMaximumSize];
-	volatile int        bEndOfDecode_;
+	volatile bool        aIsFrameInUse_[cnMaximumSize];
 };
