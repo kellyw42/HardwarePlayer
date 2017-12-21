@@ -9,7 +9,6 @@ void CHECK(CUresult result)
 		const char* e = msg;
 		cuGetErrorName(result, &e);
 		fprintf(stderr, "Error %d %s\n", result, e);
-		while (1);
 		exit(1);
 	}
 }
@@ -132,7 +131,7 @@ public:
 			CUvideotimestamp actual = frameQueue->Peek();
 			if (actual > 0)
 			{
-				printf("first decoded = %lld\n", actual);
+				//printf("first decoded = %lld\n", actual);
 				break;
 			}
 		}

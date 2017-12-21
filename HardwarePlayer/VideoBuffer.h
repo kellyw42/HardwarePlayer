@@ -52,6 +52,7 @@ public:
 
 	void ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint gl_pbo)
 	{
+		//printf("push context %p\n", context);
 		CHECK(cuCtxPushCurrent(context));
 
 		CUVIDPROCPARAMS params;
@@ -72,6 +73,14 @@ public:
 
 		CUcontext curr;
 		CHECK(cuCtxGetCurrent(&curr));
+
+		HGLRC ctx = wglGetCurrentContext();
+
+		HANDLE h = GetCurrentThread();
+	
+		printf("cuda context = %p, openGL context = %p, thread = %p\n", curr, ctx, h);
+
+		printf("cuGLMapBufferObject(%p, %p, %d)\n", &pInteropFrame, &texturePitch, gl_pbo);
 
 		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, gl_pbo));
 

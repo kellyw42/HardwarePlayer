@@ -64,12 +64,16 @@ public:
 		mode = PLAY;
 		videoBuffer->StartDecode();
 
+		CUcontext curr;
+		CHECK(cuCtxPopCurrent(&curr));
+
 		RenderFrame(videoBuffer->FirstFrame());
 	}
 
 	static void display()
 	{		
-		windowList[glutGetWindow()]->Render();
+		int i = glutGetWindow();
+		windowList[i]->Render();
 	}
 
 	static void keyboard(unsigned char key, int x, int y)
@@ -106,20 +110,20 @@ public:
 
 		glutInitWindowSize(display_width, display_height);
 
-		num = 0;
-		EnumDisplayMonitors(NULL, NULL, ListMonitors, 0);
+		//num = 0;
+		//EnumDisplayMonitors(NULL, NULL, ListMonitors, 0);
 
 		windowId = glutCreateWindow("video");
 		windowList[windowId] = this;
 
 		reshape(display_width, display_height);
 
-		glutPositionWindow(x[monitor] - 8, y[monitor]/* - 31 */);
+		//glutPositionWindow(x[monitor] - 8, y[monitor]/* - 31 */);
 
-		glutDisplayFunc(display);
-		glutKeyboardFunc(keyboard);
-		glutReshapeFunc(reshape);
-		glutSpecialFunc(special);
+		//glutDisplayFunc(display);
+		//glutKeyboardFunc(keyboard);
+		//glutReshapeFunc(reshape);
+		//glutSpecialFunc(special);
 	}
 
 	void InitRender()
@@ -151,7 +155,7 @@ public:
 		CHECK(cuDeviceGet(&device, 0));
 
 		context = 0;
-		CHECK(cuCtxCreate(&context, CU_CTX_BLOCKING_SYNC, device));
+		CHECK(cuGLCtxCreate(&context, CU_CTX_BLOCKING_SYNC, device));
 
 		lock = 0;
 		CHECK(cuvidCtxLockCreate(&lock, context));
@@ -285,7 +289,7 @@ public:
 		{
 			char title[128];
 			sprintf_s(title, "%d", frameCount);
-			glutSetWindowTitle(title);
+			//glutSetWindowTitle(title);
 			frameCount = 0;
 			start = now;
 		}

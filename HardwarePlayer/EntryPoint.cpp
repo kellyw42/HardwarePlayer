@@ -98,7 +98,32 @@ extern "C" __declspec(dllexport) void Init()
 	glutInitErrorFunc(GlutError);
 }
 
+HDC hdc;
+HGLRC hglrc;
+
+DWORD WINAPI loop(LPVOID lpThreadParameter)
+{
+	wglMakeCurrent(hdc, hglrc);
+
+	CUcontext curr;
+	CHECK(cuCtxGetCurrent(&curr));
+
+	HGLRC ctx = wglGetCurrentContext();
+
+	HANDLE h = GetCurrentThread();
+
+	printf("cuda context = %p, openGL context = %p, thread = %p\n", curr, ctx, h);
+
+	while (1)
+		VideoWindow::display();
+	return 0;
+}
+
 extern "C" __declspec(dllexport) void EventLoop()
 {
-	glutMainLoop();
+	//glutMainLoop();
+	hdc = wglGetCurrentDC();
+	hglrc = wglGetCurrentContext();
+	wglMakeCurrent(0, 0);
+	CreateThread(0, 0, loop, 0, 0, 0);
 }
