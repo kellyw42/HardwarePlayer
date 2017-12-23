@@ -5,18 +5,14 @@
 #include <chrono>
 #include <assert.h>
 #include <memory.h>
-
 #include <vector_types.h>
-
-#define FREEGLUT_PRINT_ERRORS
-
 #include "GL/glew.h"
-#include "GL/freeglut.h"
-
+#include <GL/GL.h>
 #include <cuda.h>
 #include <cudaGL.h>
-
 #include "nvcuvid.h"
+
+LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
 #define BATCH 1000
 #define TS_PACKET_SIZE	  192
@@ -27,103 +23,68 @@
 #include "VideoIndex.h"
 #include "VideoSource.h"
 #include "VideoDecoder.h"
+#include "VideoFrame.h"
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
+#include "VideoPlayer.h"
 
 FILE _iob[] = { *stdin, *stdout, *stderr };
 extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 
-extern "C" __declspec(dllexport) VideoWindow* CreateVideoWindow(eventhandler event_handler, timehandler time_handler, char *filename, int monitor)
+
+
+extern "C" __declspec(dllexport) VideoPlayer* CreateVideoPlayer(eventhandler event_handler, timehandler time_handler, int monitor)
 {
-	VideoWindow *player = new VideoWindow(event_handler, time_handler, filename, monitor);
-	return player;
+	return new VideoPlayer(event_handler, time_handler, monitor);
 }
 
-extern "C" __declspec(dllexport) void NextFrame(VideoWindow *player)
+extern "C" __declspec(dllexport) void OpenVideo(VideoPlayer *player, char* filename)
+{
+	player->PostOpenVideo(filename);
+}
+
+extern "C" __declspec(dllexport) void NextFrame(VideoPlayer *player)
 {
 	player->StepNextFrame();
 }
 
-extern "C" __declspec(dllexport) void PrevFrame(VideoWindow *player)
+extern "C" __declspec(dllexport) void PrevFrame(VideoPlayer *player)
 {
 	player->StepPrevFrame();
 }
 
-extern "C" __declspec(dllexport) void FastForw(VideoWindow *player)
+extern "C" __declspec(dllexport) void FastForw(VideoPlayer *player)
 {
 	player->FastForw();
 }
 
-extern "C" __declspec(dllexport) void Rewind(VideoWindow *player)
+extern "C" __declspec(dllexport) void Rewind(VideoPlayer *player)
 {
 	player->Rewind();
 }
 
-extern "C" __declspec(dllexport) void GotoTime(VideoWindow *player, CUvideotimestamp pts)
+extern "C" __declspec(dllexport) void GotoTime(VideoPlayer *player, CUvideotimestamp pts)
 {
 	player->GotoTime(pts);
 }
 
-extern "C" __declspec(dllexport) void Play(VideoWindow *player)
+extern "C" __declspec(dllexport) void Play(VideoPlayer *player)
 {
 	player->Play();
 }
 
-extern "C" __declspec(dllexport) void Pause(VideoWindow *player)
+extern "C" __declspec(dllexport) void Pause(VideoPlayer *player)
 {
 	player->Pause();
 }
 
-void GlutError(const char *fmt, va_list ap)
-{
-	vprintf(fmt, ap);
-	printf("\n");
-}
 
-void event_handler(int)
-{
-}
 
-void time_handler(int a, int b)
-{
-}
+
+
 
 extern "C" __declspec(dllexport) void Init()
 {
 	CHECK(cuInit(0));
-
-	int argcc = 0;
-	glutInit(&argcc, NULL);
-	glutInitErrorFunc(GlutError);
-}
-
-HDC hdc;
-HGLRC hglrc;
-
-DWORD WINAPI loop(LPVOID lpThreadParameter)
-{
-	wglMakeCurrent(hdc, hglrc);
-
-	CUcontext curr;
-	CHECK(cuCtxGetCurrent(&curr));
-
-	HGLRC ctx = wglGetCurrentContext();
-
-	HANDLE h = GetCurrentThread();
-
-	printf("cuda context = %p, openGL context = %p, thread = %p\n", curr, ctx, h);
-
-	while (1)
-		VideoWindow::display();
-	return 0;
-}
-
-extern "C" __declspec(dllexport) void EventLoop()
-{
-	//glutMainLoop();
-	hdc = wglGetCurrentDC();
-	hglrc = wglGetCurrentContext();
-	wglMakeCurrent(0, 0);
-	CreateThread(0, 0, loop, 0, 0, 0);
 }

@@ -10,11 +10,10 @@ class VideoBuffer
 private:
 	CUfunction NV12ToARGB;
 	CUvideotimestamp current, last;
-	GLuint gl_pbo[NumFrames];
+	VideoFrame* frames[NumFrames];
 	VideoDecoder* decoder;
 	CUVIDEOFORMAT format;
 	int num_fields;
-	CUcontext context;
 
 public:
 	CUVIDEOFORMAT OpenVideo(char* filename)
@@ -33,12 +32,20 @@ public:
 		return title;
 	}
 
-	GLuint GetFrame(CUvideotimestamp time)
+	VideoFrame* CreateFrameFor(CUvideotimestamp pts)
 	{
-		//assert(First() <= time && time <= last);
-		CUvideotimestamp frame = time / TIME_PER_FIELD;
+		CUvideotimestamp frame = pts / TIME_PER_FIELD;
 		CUvideotimestamp index = frame % NumFrames;
-		return gl_pbo[index];
+		frames[index]->pts = pts;
+		return frames[index];
+	}
+
+	VideoFrame* GetFrame(CUvideotimestamp pts)
+	{
+		CUvideotimestamp frame = pts / TIME_PER_FIELD;
+		CUvideotimestamp index = frame % NumFrames;
+		assert(frames[index]->pts == pts);
+		return frames[index];
 	}
 
 	void  cudaLaunchNV12toARGBDrv(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstARGB, size_t nDestPitch, int width, int height)
@@ -50,11 +57,8 @@ public:
 		CHECK(cuLaunchKernel(NV12ToARGB, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
 	}
 
-	void ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint gl_pbo)
+	void ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo)
 	{
-		//printf("push context %p\n", context);
-		CHECK(cuCtxPushCurrent(context));
-
 		CUVIDPROCPARAMS params;
 		memset(&params, 0, sizeof(CUVIDPROCPARAMS));
 		params.output_stream = 0;
@@ -64,25 +68,12 @@ public:
 		params.second_field = active_field;
 
 		unsigned int decodePitch = 0;
-
 		CUdeviceptr pDecodedFrame;
 		CHECK(cuvidMapVideoFrame(decoder->decoder, frameInfo.picture_index, &pDecodedFrame, &decodePitch, &params));
 
 		size_t texturePitch = 0;
 		CUdeviceptr  pInteropFrame = 0;
-
-		CUcontext curr;
-		CHECK(cuCtxGetCurrent(&curr));
-
-		HGLRC ctx = wglGetCurrentContext();
-
-		HANDLE h = GetCurrentThread();
-	
-		printf("cuda context = %p, openGL context = %p, thread = %p\n", curr, ctx, h);
-
-		printf("cuGLMapBufferObject(%p, %p, %d)\n", &pInteropFrame, &texturePitch, gl_pbo);
-
-		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, gl_pbo));
+		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, pbo));
 
 		int display_width = format.display_area.right - format.display_area.left;
 		int display_height = format.display_area.bottom - format.display_area.top;
@@ -90,10 +81,8 @@ public:
 		texturePitch /= display_height * 4;
 
 		cudaLaunchNV12toARGBDrv(pDecodedFrame, decodePitch, pInteropFrame, texturePitch, display_width, display_height);
-		CHECK(cuGLUnmapBufferObject(gl_pbo));
+		CHECK(cuGLUnmapBufferObject(pbo));
 		CHECK(cuvidUnmapVideoFrame(decoder->decoder, pDecodedFrame));
-
-		CHECK(cuCtxPopCurrent(NULL));
 	}
 
 	void AppendNextFrame(int N)
@@ -102,9 +91,10 @@ public:
 
 		for (int active_field = 0; active_field < N; active_field++)
 		{
-			last = frameInfo.timestamp + active_field * TIME_PER_FIELD;
-
-			ConvertFrame(frameInfo, active_field, GetFrame(last));
+			CUvideotimestamp pts = frameInfo.timestamp + active_field * TIME_PER_FIELD;
+			VideoFrame *frame = CreateFrameFor(pts);
+			ConvertFrame(frameInfo, active_field, frame->gl_pbo);
+			last = frame->pts;
 		}
 
 		decoder->releaseFrame(&frameInfo);
@@ -115,14 +105,14 @@ public:
 		return last - (NumFrames-1) * TIME_PER_FIELD;
 	}
 
-	GLuint FirstFrame()
+	VideoFrame* FirstFrame()
 	{
-		AppendNextFrame(1);
-		current = last;
+		AppendNextFrame(2);
+		current = last - TIME_PER_FIELD;
 		return GetFrame(current);
 	}
 
-	GLuint NextFrame()
+	VideoFrame* NextFrame()
 	{
 		current += TIME_PER_FIELD;
 
@@ -132,7 +122,7 @@ public:
 		return GetFrame(current);
 	}
 
-	GLuint PrevFrame()
+	VideoFrame* PrevFrame()
 	{
 		if (current > 0)
 		{
@@ -155,12 +145,12 @@ public:
 			return GetFrame(0);
 	}
 
-	GLuint FastForwardImage(int speed)
+	VideoFrame* FastForwardImage(int speed)
 	{
 		decoder->Goto(current + (speed * 3) * TIME_PER_FIELD);
 		do
 		{
-			AppendNextFrame(1);
+			AppendNextFrame(num_fields);
 		} 
 		while (last <= current);
 
@@ -168,38 +158,26 @@ public:
 		return GetFrame(current);
 	}
 
-	GLuint FastRewindImage(int speed)
+	VideoFrame* FastRewindImage(int speed)
 	{
 		decoder->Goto(current - speed * 10 * TIME_PER_FIELD);
-		AppendNextFrame(1);
-		current = last;
+		AppendNextFrame(num_fields);
+		current = last - TIME_PER_FIELD;
 		return GetFrame(current);
 	}
 
-	GLuint GotoTime(CUvideotimestamp pts)
+	VideoFrame* GotoTime(CUvideotimestamp pts)
 	{
 		decoder->Goto(pts);
-		AppendNextFrame(1);
-		current = last;
+		AppendNextFrame(num_fields);
+		current = pts;
 		return GetFrame(current);
 	}
 
-	void Init(CUcontext context)
+	void Init()
 	{
-		this->context = context;
-
-		glGenBuffersARB(NumFrames, gl_pbo);
-
-		CUcontext curr;
-		CHECK(cuCtxGetCurrent(&curr));
-
 		for (int i = 0; i < NumFrames; i++)
-		{
-			glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, gl_pbo[i]);
-			glBufferDataARB(GL_PIXEL_UNPACK_BUFFER_ARB, (format.display_area.right - format.display_area.left) * (format.display_area.bottom - format.display_area.top) * 4, 0, GL_STREAM_DRAW_ARB);
-			glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
-			cuGLRegisterBufferObject(gl_pbo[i]);
-		}
+			frames[i] = new VideoFrame(format.display_area.right - format.display_area.left, format.display_area.bottom - format.display_area.top);
 
 		CUmodule colourConversionModule;
 		CHECK(cuModuleLoad(&colourConversionModule, "ColourConversion.cubin"));

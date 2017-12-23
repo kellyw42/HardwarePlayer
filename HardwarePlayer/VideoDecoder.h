@@ -8,7 +8,7 @@ void CHECK(CUresult result)
 		char msg[256];
 		const char* e = msg;
 		cuGetErrorName(result, &e);
-		fprintf(stderr, "Error %d %s\n", result, e);
+		printf("Error %d %s\n", result, e);
 		exit(1);
 	}
 }
@@ -22,7 +22,6 @@ class VideoDecoder
 public:
 
 	FrameQueue* frameQueue;
-
 	VideoSource *source;
 	CUvideoparser parser;
 	CUvideodecoder decoder;

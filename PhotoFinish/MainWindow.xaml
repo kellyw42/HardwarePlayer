@@ -9,11 +9,14 @@
     <Grid>
         <Menu Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0">
             <MenuItem Header="_File">
-                <MenuItem Header="Open" Click="MenuItem_Click"/>
+                <MenuItem Header="Open Start" Click="OpenStart"/>
+                <MenuItem Header="Open Finish" Click="OpenFinish"/>
                 <MenuItem Header="Close"/>
             </MenuItem>
             <MenuItem Header="_Edit"/>
             <MenuItem Header="_Help"/>
         </Menu>
+
+        <TextBox Grid.Row="1" Grid.Column="0" Height="20" Width="100" Name="time"></TextBox>
     </Grid>
 </Window>
