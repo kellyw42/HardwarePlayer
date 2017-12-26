@@ -43,7 +43,7 @@ namespace PhotoFinish
             NativeVideo.OpenVideo(player, @"C:\PhotoFinish\Meets2\2017-12-15\Track1-Start-17-40-55.MTS");
         }
 
-        private void time_handler(int start, int now)
+        private void time_handler(ulong start, ulong now)
         {
             time.Dispatcher.Invoke(new Action(() => { time.Text = start + " - " + now; }));
         }

@@ -5,7 +5,7 @@ static int num, x[3], y[3];
 extern "C"
 {
 	typedef void(__stdcall *eventhandler)(int);
-	typedef void(__stdcall *timehandler)(int, int);
+	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
 
 class VideoWindow

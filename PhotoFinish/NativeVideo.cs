@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-public delegate void timehandler(int start, int now);
+public delegate void timehandler(ulong start, ulong now);
 public delegate void eventhandler(int event_type);
 
 namespace PhotoFinish
