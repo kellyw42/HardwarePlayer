@@ -3,37 +3,28 @@
 #define NumFrames	10
 
 
-char title[256];
-
 class VideoBuffer
 {
 private:
-	CUfunction NV12ToARGB;
+	CUfunction NV12ToARGB, Luminance;
 	CUvideotimestamp current, last;
 	VideoFrame* frames[NumFrames];
 	VideoDecoder* decoder;
 	CUVIDEOFORMAT format;
 	int num_fields;
+	CUdeviceptr totalLuminance;
 
-public:
-	CUVIDEOFORMAT OpenVideo(char* filename)
-	{
-		decoder = new VideoDecoder();
-		format = decoder->OpenVideo(filename);
-
-		num_fields = format.progressive_sequence ? 1 : 2;
-
-		return format;
-	}
-
+/*
 	char* Info()
 	{
 		sprintf_s(title, "%lld <= %lld (%lld) <= %lld", First(), current, (current - First())/TIME_PER_FIELD, last);
 		return title;
 	}
+*/
 
 	VideoFrame* CreateFrameFor(CUvideotimestamp pts)
 	{
+		Trace("VideoBuffer::CreateFrameFor(%ld);", pts);
 		CUvideotimestamp frame = pts / TIME_PER_FIELD;
 		CUvideotimestamp index = frame % NumFrames;
 		frames[index]->pts = pts;
@@ -42,6 +33,7 @@ public:
 
 	VideoFrame* GetFrame(CUvideotimestamp pts)
 	{
+		Trace("VideoBuffer::GetFrame(%ld);", pts);
 		CUvideotimestamp frame = pts / TIME_PER_FIELD;
 		CUvideotimestamp index = frame % NumFrames;
 		assert(frames[index]->pts == pts);
@@ -57,8 +49,21 @@ public:
 		CHECK(cuLaunchKernel(NV12ToARGB, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
 	}
 
-	void ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo)
+	long long  cudaLaunchLuminance(CUdeviceptr d_srcNV12, size_t nSourcePitch, int width, int height, int left, int right, int top, int bottom)
 	{
+		void *args[7] = { &d_srcNV12, &nSourcePitch, &left, &right, &top, &bottom, &totalLuminance };
+
+		CHECK(cuLaunchKernel(Luminance, 1, 1, 1, 1, 1, 1, 0, 0, args, 0));
+
+		long long hostResult = 0;
+		cuMemcpyDtoH(&hostResult, totalLuminance, sizeof(long long));
+		return hostResult;
+	}
+
+	long long ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo, RECT *SearchRectangle)
+	{
+		long long luminance = 0;
+
 		CUVIDPROCPARAMS params;
 		memset(&params, 0, sizeof(CUVIDPROCPARAMS));
 		params.output_stream = 0;
@@ -81,19 +86,38 @@ public:
 		texturePitch /= display_height * 4;
 
 		cudaLaunchNV12toARGBDrv(pDecodedFrame, decodePitch, pInteropFrame, texturePitch, display_width, display_height);
+
+		//cuMemcpyDtoH(&luminance, pDecodedFrame, sizeof(luminance));
+
+		if (SearchRectangle)
+			luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, display_width, display_height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
+
 		CHECK(cuGLUnmapBufferObject(pbo));
 		CHECK(cuvidUnmapVideoFrame(decoder->decoder, pDecodedFrame));
+
+		return luminance;
 	}
 
-	void AppendNextFrame(int N)
+	void AppendNextFrame(RECT *searchRectangle)
 	{
+		//RECT whole;
+		//whole.left = format.display_area.left;
+		//whole.top = format.display_area.top;
+		//whole.right = format.display_area.right;
+		//whole.bottom = format.display_area.bottom;
+
+		//if (searchRectangle == NULL)
+		//	searchRectangle = &whole;
+
+		Trace("VideoBuffer::AppendNextFrame();");
 		CUVIDPARSERDISPINFO frameInfo = decoder->FetchFrame();
 
-		for (int active_field = 0; active_field < N; active_field++)
+		for (int active_field = 0; active_field < num_fields; active_field++)
 		{
 			CUvideotimestamp pts = frameInfo.timestamp + active_field * TIME_PER_FIELD;
 			VideoFrame *frame = CreateFrameFor(pts);
-			ConvertFrame(frameInfo, active_field, frame->gl_pbo);
+			frame->luminance = ConvertFrame(frameInfo, active_field, frame->gl_pbo, searchRectangle);
+			Trace("store field %d, pts=%ld in frame %p with lum %lld\n", active_field, pts, frame, frame->luminance);
 			last = frame->pts;
 		}
 
@@ -105,73 +129,16 @@ public:
 		return last - (NumFrames-1) * TIME_PER_FIELD;
 	}
 
-	VideoFrame* FirstFrame()
+public:
+
+	CUVIDEOFORMAT OpenVideo(char* filename)
 	{
-		AppendNextFrame(2);
-		current = last - TIME_PER_FIELD;
-		return GetFrame(current);
-	}
+		decoder = new VideoDecoder();
+		format = decoder->OpenVideo(filename);
 
-	VideoFrame* NextFrame()
-	{
-		current += TIME_PER_FIELD;
+		num_fields = format.progressive_sequence ? 1 : 2;
 
-		while (current > last)
-			AppendNextFrame(num_fields);
-
-		return GetFrame(current);
-	}
-
-	VideoFrame* PrevFrame()
-	{
-		if (current > 0)
-		{
-			current -= TIME_PER_FIELD;
-			if (current < First())
-			{
-				//printf("--------------------------------------------------------------------------\n");
-				decoder->Goto(current - (NumFrames * TIME_PER_FIELD));
-				do
-				{
-					AppendNextFrame(num_fields);
-					//printf("last = %lld < current = %lld\n", last, current);
-				} 
-				while (last < current);
-			}
-
-			return GetFrame(current);
-		}
-		else
-			return GetFrame(0);
-	}
-
-	VideoFrame* FastForwardImage(int speed)
-	{
-		decoder->Goto(current + (speed * 3) * TIME_PER_FIELD);
-		do
-		{
-			AppendNextFrame(num_fields);
-		} 
-		while (last <= current);
-
-		current = last;
-		return GetFrame(current);
-	}
-
-	VideoFrame* FastRewindImage(int speed)
-	{
-		decoder->Goto(current - speed * 10 * TIME_PER_FIELD);
-		AppendNextFrame(num_fields);
-		current = last - TIME_PER_FIELD;
-		return GetFrame(current);
-	}
-
-	VideoFrame* GotoTime(CUvideotimestamp pts)
-	{
-		decoder->Goto(pts);
-		AppendNextFrame(num_fields);
-		current = pts;
-		return GetFrame(current);
+		return format;
 	}
 
 	void Init()
@@ -183,6 +150,9 @@ public:
 		CHECK(cuModuleLoad(&colourConversionModule, "ColourConversion.cubin"));
 
 		CHECK(cuModuleGetFunction(&NV12ToARGB, colourConversionModule, "NV12ToARGB"));
+		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
+
+		CHECK(cuMemAlloc(&totalLuminance, sizeof(long long)));
 
 		decoder->Init();
 	}
@@ -190,5 +160,86 @@ public:
 	void StartDecode()
 	{
 		decoder->Start();
+	}
+
+	VideoFrame* FirstFrame()
+	{
+		AppendNextFrame(NULL);
+		current = last - TIME_PER_FIELD;
+		return GetFrame(current);
+	}
+
+	VideoFrame* NextFrame(RECT *searchRectangle)
+	{
+		Trace("VideoBuffer::NextFrame();");
+		current += TIME_PER_FIELD;
+
+		while (current > last)
+			AppendNextFrame(searchRectangle);
+
+		return GetFrame(current);
+	}
+
+	VideoFrame* PrevFrame()
+	{
+		Trace("VideoBuffer::PrevFrame();");
+		if (current > 0)
+		{
+			current -= TIME_PER_FIELD;
+			if (current < First())
+			{
+				//printf("--------------------------------------------------------------------------\n");
+				decoder->Goto(current - (NumFrames * TIME_PER_FIELD));
+				do
+				{
+					AppendNextFrame(NULL);
+					//printf("last = %lld < current = %lld\n", last, current);
+				} while (last < current);
+			}
+
+			return GetFrame(current);
+		}
+		else
+			return GetFrame(0);
+	}
+
+	VideoFrame* FastForwardImage(int speed)
+	{
+		Trace("VideoBuffer::FastForwardImage(%d);", speed);
+		decoder->Goto(current + speed * TIME_PER_FIELD);
+		do
+		{
+			AppendNextFrame(NULL);
+		} while (last <= current);
+
+		current = last;
+		return GetFrame(current);
+	}
+
+	VideoFrame* FastRewindImage(int speed)
+	{
+		Trace("VideoBuffer::FastRewindImage(%d);", speed);
+		decoder->Goto(current - speed * TIME_PER_FIELD);
+		AppendNextFrame(NULL);
+		current = last - TIME_PER_FIELD;
+		return GetFrame(current);
+	}
+
+	VideoFrame* GotoTime(CUvideotimestamp pts)
+	{
+		Trace("VideoBuffer::GotoTime(%ld);", pts);
+
+		// Fixme: check if already in buffer!!!
+
+		decoder->Goto(pts);
+
+		do
+		{
+			AppendNextFrame(NULL);
+		} while (last < pts);
+
+		current = pts;
+
+		return GetFrame(current);
 	}
 };

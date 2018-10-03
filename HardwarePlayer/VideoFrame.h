@@ -5,6 +5,7 @@ class VideoFrame
 public:
 	CUvideotimestamp pts = 0;
 	GLuint gl_pbo;
+	long long luminance = 0;
 
 	VideoFrame(int width, int height)
 	{

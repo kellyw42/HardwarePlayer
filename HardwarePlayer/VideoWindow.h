@@ -4,7 +4,7 @@ static int num, x[3], y[3];
 
 extern "C"
 {
-	typedef void(__stdcall *eventhandler)(int);
+	typedef void(__stdcall *eventhandler)(long long);
 	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
 
@@ -22,6 +22,9 @@ public:
 	int monitor;
 	timehandler time_handler;
 	CUvideotimestamp first;
+	VideoFrame *latest;
+	float top, bottom;
+	RECT rect;
 
 	static BOOL ListMonitors(HMONITOR m, HDC h, LPRECT p, LPARAM u)
 	{
@@ -44,14 +47,20 @@ public:
 		this->display_width = display_width;
 		this->display_height = display_height;
 
-		CreateWin32Window(monitor);
+		char name[256];
+		sprintf(name, "%s.finishline", filename);
+		FILE *line = fopen(name, "r");
+		if (line)
+			fscanf(line, "%f,%f", &top, &bottom);
+
+		CreateWin32Window(filename);
 
 		InitCUDA();
 
 		InitOpenGL();
 	}
 
-	void CreateWin32Window(int monitor)
+	void CreateWin32Window(char* filename)
 	{
 		HINSTANCE hInstance = GetModuleHandle(NULL);
 
@@ -69,12 +78,10 @@ public:
 		RegisterClass(&wc);
 
 		RECT rect;
-		SetRect(&rect, x[monitor], y[monitor], x[monitor]+display_width, y[monitor]+display_height);
 
+		SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
 		AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-
-		hwnd = CreateWindow(TEXT("Wayne"), TEXT("Title"), WS_OVERLAPPEDWINDOW, rect.left, rect.top+1, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
-		//SetWindowLong(hwnd, GWL_STYLE, 0);
+		hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
 
 		ShowWindow(hwnd, SW_SHOW);
 
@@ -139,15 +146,72 @@ public:
 	void FirstFrame(VideoFrame *frame)
 	{
 		first = frame->pts;
-		RenderFrame(frame);
+		RenderFrame(frame, 0, 0);
 	}
 
-	void RenderFrame(VideoFrame *frame)
+	void MoveLine(char direction)
 	{
-		time_handler(first, frame->pts);
-		UpdateFrameRate();
+		if (top == 0)
+			top = bottom = (float)display_width / 2;
 
-		glViewport(0, 0, display_width, display_height);
+		if (direction == 'Q' || direction == 'A')
+			top--;
+		if (direction == 'A' || direction == 'Z')
+			bottom--;
+		if (direction == 'W' || direction == 'D')
+			top++;
+		if (direction == 'D' || direction == 'X')
+			bottom++;
+
+		RenderFrame(latest, 0, 0);
+	}
+
+	bool drawing = false;
+
+	void StartRectangle(LPARAM lParam)
+	{
+		rect.left = rect.right = GET_X_LPARAM(lParam);
+		rect.top = rect.bottom = GET_Y_LPARAM(lParam);
+
+		drawing = true;
+		RenderFrame(latest, 0, 0);
+	}
+
+	void StretchRectangle(LPARAM lParam)
+	{
+		if (drawing)
+		{
+			rect.right = GET_X_LPARAM(lParam);
+			rect.bottom = GET_Y_LPARAM(lParam);
+			RenderFrame(latest, 0, 0);
+		}
+	}
+
+	void DoneRectangle()
+	{
+		drawing = false;
+	}
+
+	int fps = 0;
+
+	void RenderFrame(VideoFrame *frame, int mode, int speed)
+	{
+		Trace("RenderFrame(%ld);", frame->pts);
+		latest = frame;
+
+		int currentRate = UpdateFrameRate();
+
+		if (currentRate >= 0)
+			fps = currentRate;
+
+		char title[128];
+		sprintf_s(title, "mode = %d, speed = %d, pts = %lld, fps = %d, lum = %p", mode, speed, frame->pts, fps*speed, frame->luminance);
+		SetWindowTextA(hwnd, title);
+
+		if (time_handler)
+			time_handler(first, frame->pts);
+
+		glViewport(0, 0, (int)(display_width), (int)(display_height));
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 		glMatrixMode(GL_PROJECTION);
@@ -163,7 +227,6 @@ public:
 		glDisable(GL_DEPTH_TEST);
 
 		glBegin(GL_QUADS);
-		{
 			glTexCoord2f(0, (float)display_height);
 			glVertex2f(0, 0);
 			glTexCoord2f((float)display_width, (float)display_height);
@@ -172,17 +235,46 @@ public:
 			glVertex2f(1, 1);
 			glTexCoord2f(0, 0);
 			glVertex2f(0, 1);
-		}
 		glEnd();
 
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
+		
+		if (top > 0)
+		{
+			glEnable(GL_LINE_SMOOTH);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+			glLineWidth(10);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glBegin(GL_LINES);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glVertex2f(bottom / display_width, 0);
+			glVertex2f(top / display_width, 1);
+			glEnd();
+		}
+
+		if (rect.right != rect.left)
+		{
+			glLineWidth(1);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glBegin(GL_LINE_STRIP);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.top / display_height);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.bottom / display_height);
+			glVertex2f((float)rect.right / display_width, 1.0f-(float)rect.bottom / display_height);
+			glVertex2f((float)rect.right / display_width, 1.0f-(float)rect.top / display_height);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.top / display_height);
+			glEnd();
+		}
+
 		glFlush();
 		SwapBuffers(hdc);
 	}
 
 
-	void UpdateFrameRate()
+	int UpdateFrameRate()
 	{
 		frameCount++;
 		high_resolution_clock::time_point now = high_resolution_clock::now();
@@ -190,11 +282,12 @@ public:
 
 		if (time_span.count() > 1)
 		{
-			char title[128];
-			sprintf_s(title, "%d", frameCount);
-			SetWindowTextA(hwnd, title);
+			int result = frameCount;
 			frameCount = 0;
 			start = now;
+			return result;
 		}
+		else
+			return -1;
 	}
 };

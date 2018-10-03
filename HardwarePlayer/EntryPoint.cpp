@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <io.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <Windows.h>
+#include <Windowsx.h>
 #include <chrono>
 #include <assert.h>
 #include <memory.h>
@@ -13,6 +15,17 @@
 #include "nvcuvid.h"
 
 LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+
+void Trace(const char* format, ...)
+{
+	char msg[1024];
+	va_list argptr;
+	va_start(argptr, format);
+	vsprintf(msg, format, argptr);
+	va_end(argptr);
+	OutputDebugStringA(msg);
+	OutputDebugStringA("\n");
+}
 
 #define BATCH 1000
 #define TS_PACKET_SIZE	  192
@@ -27,14 +40,14 @@ LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
 #include "VideoPlayer.h"
+#include "Audio.h"
+#include "Lenovo.h"
 
 FILE _iob[] = { *stdin, *stdout, *stderr };
 extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 
-
-
-extern "C" __declspec(dllexport) VideoPlayer* CreateVideoPlayer(eventhandler event_handler, timehandler time_handler, int monitor)
+extern "C" __declspec(dllexport) VideoPlayer* CreateVideoPlayer(eventhandler event_handler, timehandler time_handler, int monitor, HWND parent)
 {
 	return new VideoPlayer(event_handler, time_handler, monitor);
 }
@@ -44,14 +57,24 @@ extern "C" __declspec(dllexport) void OpenVideo(VideoPlayer *player, char* filen
 	player->PostOpenVideo(filename);
 }
 
+extern "C" __declspec(dllexport) void GotoTime(VideoPlayer *player, CUvideotimestamp pts)
+{
+	player->PostGoto(pts);
+}
+
 extern "C" __declspec(dllexport) void NextFrame(VideoPlayer *player)
 {
-	player->StepNextFrame();
+	player->PostStepNextFrame();
 }
 
 extern "C" __declspec(dllexport) void PrevFrame(VideoPlayer *player)
 {
-	player->StepPrevFrame();
+	player->PostStepPrevFrame();
+}
+
+extern "C" __declspec(dllexport) void VisualSearch(VideoPlayer *player)
+{
+	player->PostVisualSearch();
 }
 
 extern "C" __declspec(dllexport) void FastForw(VideoPlayer *player)
@@ -64,9 +87,14 @@ extern "C" __declspec(dllexport) void Rewind(VideoPlayer *player)
 	player->Rewind();
 }
 
-extern "C" __declspec(dllexport) void GotoTime(VideoPlayer *player, CUvideotimestamp pts)
+extern "C" __declspec(dllexport) void FastForward(VideoPlayer *player)
 {
-	player->GotoTime(pts);
+	player->FastForw();
+}
+
+extern "C" __declspec(dllexport) void PlayPause(VideoPlayer *player)
+{
+	player->PostPlayPause();
 }
 
 extern "C" __declspec(dllexport) void Play(VideoPlayer *player)
@@ -78,11 +106,6 @@ extern "C" __declspec(dllexport) void Pause(VideoPlayer *player)
 {
 	player->Pause();
 }
-
-
-
-
-
 
 extern "C" __declspec(dllexport) void Init()
 {

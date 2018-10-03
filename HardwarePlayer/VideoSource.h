@@ -35,7 +35,7 @@ public:
 
 		fopen_s(&file, filename, "rb");
 
-		fseek(file, 4, SEEK_SET);
+		_fseeki64(file, 4, SEEK_SET);
 
 		packet_length = 0;
 
@@ -48,6 +48,7 @@ public:
 
 	void SendEndOfStream()
 	{
+		Trace("VideoSource::SendEndOfStream();");
 		CUVIDSOURCEDATAPACKET packet;
 		packet.payload_size = 0;
 		packet.payload = PES;
@@ -60,6 +61,7 @@ public:
 
 	void SendPacket()
 	{
+		//Trace("VideoSource::SendPacket();");
 		CUVIDSOURCEDATAPACKET packet;
 		packet.payload_size = packet_length;
 		packet.payload = PES;
@@ -71,10 +73,6 @@ public:
 
 	void Parse()
 	{
-		//CreateThread(NULL, 0, LoadDTSIndex, this, NULL, NULL);
-		//while (frames < 1000)
-		//	Sleep(1);
-
 		while (1)
 		{
 			while (!started)
@@ -118,6 +116,7 @@ public:
 				{
 					if (packet_length > 0)
 					{
+						Trace("VideoSource send packet length = %d", packet_length);
 						SendPacket();
 						packet_length = 0;
 					}
@@ -146,12 +145,14 @@ public:
 
 	void Start()
 	{
+		Trace("VideoSource::Start();");
 		started = true;
 		SetEvent(startEvent);
 	}
 
 	void Stop()
 	{
+		Trace("VideoSource::Stop();");
 		started = false;
 		while (!waiting)
 			Sleep(1);
@@ -161,10 +162,11 @@ public:
 
 	void Goto(CUvideotimestamp pts)
 	{
+		Trace("VideoSource::Goto(%ld);", pts);
 		packet_length = 0;
  
-		long pos = index->Lookup(pts);
-
-		fseek(file, pos, SEEK_SET);
+		__int64 pos = index->Lookup(pts);
+		Trace("VideoSource seek to pos = %lld", pos);
+		_fseeki64(file, pos, SEEK_SET);
 	}
 };

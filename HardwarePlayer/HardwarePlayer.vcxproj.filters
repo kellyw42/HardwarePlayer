@@ -46,6 +46,12 @@
     <ClInclude Include="VideoFrame.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Audio.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lenovo.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

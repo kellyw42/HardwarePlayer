@@ -7,14 +7,15 @@ class VideoIndex
 private:
 	size_t frames = 0;
 	char* filename;
-	unsigned long* DTS;
+	__int64* DTS;
 
 public:
 	VideoIndex(char* filename)
 	{
 		this->filename = filename;
-		CreateThread(NULL, 0, LoadFunction, this, 0, 0);
-		Sleep(100);
+		//CreateThread(NULL, 0, LoadFunction, this, 0, 0);
+		//Sleep(100);
+		LoadMethod();
 	}
 
 	static DWORD WINAPI LoadFunction(LPVOID lpThreadParameter)
@@ -27,7 +28,7 @@ public:
 	{
 		FILE* DTS_file;
 
-		DTS = new unsigned long[MAXFRAMES]();
+		DTS = new __int64[MAXFRAMES]();
 
 		char name[256];
 		sprintf_s(name, "%s.dts", filename);
@@ -35,7 +36,7 @@ public:
 		if (_access(name, 0) != -1)
 		{
 			fopen_s(&DTS_file, name, "rb");
-			frames = fread(DTS, sizeof(unsigned long), MAXFRAMES, DTS_file);
+			frames = fread(DTS, sizeof(__int64), MAXFRAMES, DTS_file);
 			fclose(DTS_file);
 		}
 		else
@@ -45,8 +46,8 @@ public:
 			FILE *file;
 			fopen_s(&file, filename, "rb");
 
-			long seek = 4;
-			fseek(file, seek, SEEK_SET);
+			__int64 seek = 4;
+			_fseeki64(file, seek, SEEK_SET);
 
 			while (1)
 			{
@@ -77,26 +78,6 @@ public:
 						int64_t item16 = (buf[16] << 8 | buf[17]) >> 1;
 						uint64_t pts = (item13 << 30) | (item14 << 15) | item16;
 
-						//int64_t item18 = (buf[18] & 0x0F) >> 1;
-						//int64_t item19 = (buf[19] << 8 | buf[20]) >> 1;
-						//int64_t item21 = (buf[21] << 8 | buf[22]) >> 1;
-						//uint64_t dts = (item18 << 30) | (item19 << 15) | item21;
-
-						//printf("%ld: pts %lld(%lld), dts %lld(%lld)\n", seek, pts, pts/TIME_PER_FRAME, dts, dts/TIME_PER_FRAME);
-
-						//assert(buf[4] == 0x00);
-						//assert(buf[5] == 0x00);
-						//assert(buf[6] == 0x01);
-
-						//assert(buf[24] == 0x00);
-						//assert(buf[25] == 0x00);
-						//assert(buf[26] == 0x01);
-						//		
-						//assert(buf[30] == 0x00);
-						//assert(buf[31] == 0x00);
-						//assert(buf[32] == 0x01);
-						//assert(buf[33] == 0x27 || buf[33] == 0x28)
-
 						DTS[pts / TIME_PER_FRAME] = (seek - 4) / TS_PACKET_SIZE;
 						frames++;
 					}
@@ -109,14 +90,15 @@ public:
 			fclose(file);
 
 			fopen_s(&DTS_file, name, "wb");
-			fwrite(DTS, sizeof(unsigned long), MAXFRAMES, DTS_file);
+			fwrite(DTS, sizeof(__int64), MAXFRAMES, DTS_file);
 			fclose(DTS_file);
 		}
 	}
 
-	long Lookup(CUvideotimestamp pts)
+	__int64 Lookup(CUvideotimestamp pts)
 	{
-		CUvideotimestamp index = pts / TIME_PER_FRAME;
+		Trace("VideoIndex::Lookup(%ld);", pts);
+		__int64 index = pts / TIME_PER_FRAME;
 		while (index > 0 && DTS[index] == 0)
 			index--;
 
