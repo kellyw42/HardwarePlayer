@@ -8,7 +8,7 @@ void CHECK(CUresult result)
 		char msg[256];
 		const char* e = msg;
 		cuGetErrorName(result, &e);
-		fprintf(stderr, "Error %d %s\n", result, e);
+		printf("Error %d %s\n", result, e);
 		exit(1);
 	}
 }
@@ -22,12 +22,10 @@ class VideoDecoder
 public:
 
 	FrameQueue* frameQueue;
-
 	VideoSource *source;
 	CUvideoparser parser;
 	CUvideodecoder decoder;
 	CUVIDEOFORMAT format;
-
 
 	CUVIDEOFORMAT OpenVideo(char* filename)
 	{
@@ -109,20 +107,23 @@ public:
 
 	void Start()
 	{
-		//Create();
+		Trace("VideoDecoder::Start();");
+		Create(); // needed?
 		source->Start();
 	}
 
 	void Stop()
 	{
+		Trace("VideoDecoder::Stop();");
 		frameQueue->Stop();
 		source->Stop();
-		//Destroy();
+		Destroy(); // needed?
 		frameQueue->Start();
 	}
 
 	void Goto(CUvideotimestamp pts)
 	{
+		Trace("VideoDecoder::Goto(%ld);", pts);
 		Stop();
 		source->Goto(pts);
 		Start();
@@ -139,6 +140,7 @@ public:
 
 	CUVIDPARSERDISPINFO FetchFrame()
 	{
+		Trace("VideoDecoder::FetchFrame();");
 		CUVIDPARSERDISPINFO info;
 		while (1)
 		{
@@ -155,6 +157,7 @@ public:
 
 int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 {
+	//Trace("HandleVideoData();");
 	VideoDecoder *container = (VideoDecoder*)userData;
 	CHECK(cuvidParseVideoData(container->parser, pPacket));
 	return true;
@@ -162,6 +165,7 @@ int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 
 int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 {
+	//Trace("HandlePictureDecode(%d);", pPicParams->CurrPicIdx);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	container->frameQueue->waitUntilFrameAvailable(pPicParams->CurrPicIdx);
 	CHECK(cuvidDecodePicture(container->decoder, pPicParams));
@@ -170,6 +174,7 @@ int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 
 int CUDAAPI HandlePictureDisplay(void *userData, CUVIDPARSERDISPINFO *p)
 {
+	//Trace("HandlePictureDisplay(%ld);", p->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	//printf("enqueue PTS = %lld\n", p->timestamp);
 	container->frameQueue->enqueue(p);

@@ -40,6 +40,18 @@
     <ClInclude Include="VideoIndex.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="VideoPlayer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoFrame.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lenovo.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

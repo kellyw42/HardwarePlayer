@@ -1,132 +1,115 @@
 using namespace std::chrono;
 
+static int num, x[3], y[3];
+
 extern "C"
 {
-	typedef void(__stdcall *eventhandler)(int);
-	typedef void(__stdcall *timehandler)(int, int);
-	typedef void(__stdcall *mousehandler)(int, int, int);
+	typedef void(__stdcall *eventhandler)(long long);
+	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
-
-high_resolution_clock::time_point start = high_resolution_clock::now();
-
-int frameCount = 0;
-
-int num, x[3], y[3];
-
-BOOL ListMonitors(HMONITOR m, HDC h, LPRECT p, LPARAM u)
-{
-	x[num] = p->left;
-	y[num] = p->top;
-	num++;
-	return TRUE;
-}
-
-class VideoWindow;
-
-VideoWindow* windowList[10];
-
-double total = 0;
-int number = 0;
-
-enum Mode { PLAY, PAUSE, REWIND };
 
 class VideoWindow
 {
 public:
-	int speed;
-	Mode mode;
+	high_resolution_clock::time_point start = high_resolution_clock::now();
+	int frameCount = 0;
 	int display_width, display_height;
-	int windowId;
+	HWND hwnd;
+	HDC hdc;
 	GLuint gl_texid;
 	GLuint gl_shader;
-	VideoBuffer* videoBuffer;
 	CUcontext context;
-	CUvideoctxlock lock;
+	int monitor;
+	timehandler time_handler;
+	CUvideotimestamp first;
+	VideoFrame *latest;
+	float top, bottom;
+	RECT rect;
 
-	VideoWindow(eventhandler event_handler, timehandler time_handler, char* filename, int monitor)
+	static BOOL ListMonitors(HMONITOR m, HDC h, LPRECT p, LPARAM u)
 	{
-		videoBuffer = new VideoBuffer();
-
-		CUVIDEOFORMAT format = videoBuffer->OpenVideo(filename);
-
-		display_width = format.display_area.right - format.display_area.left;
-		display_height = format.display_area.bottom - format.display_area.top;
-
-		CreateMyWindow(monitor);
-
-		InitContext();
-
-		InitRender();
-
-		videoBuffer->Init(context);
-
-		speed = 1;
-		mode = PLAY;
-		videoBuffer->StartDecode();
-
-		CUcontext curr;
-		CHECK(cuCtxPopCurrent(&curr));
-
-		RenderFrame(videoBuffer->FirstFrame());
+		x[num] = p->left;
+		y[num] = p->top;
+		num++;
+		return TRUE;
 	}
 
-	static void display()
-	{		
-		int i = glutGetWindow();
-		windowList[i]->Render();
-	}
-
-	static void keyboard(unsigned char key, int x, int y)
+	VideoWindow(int monitor, timehandler time_handler)
 	{
-		if (key == 'p')
-			windowList[glutGetWindow()]->PlayPause();
-		if (key == 'r')
-			windowList[glutGetWindow()]->Rewind();
-		if (key == 'f')
-			windowList[glutGetWindow()]->FastForw();
+		this->monitor = monitor;
+		this->time_handler = time_handler;
+		num = 0;
+		EnumDisplayMonitors(NULL, NULL, ListMonitors, 0);
 	}
 
-	static void special(int key, int x, int y)
+	void Open(char *filename, int display_width, int display_height)
 	{
-		if (key == GLUT_KEY_RIGHT)
-			windowList[glutGetWindow()]->StepNextFrame();
-		else if (key == GLUT_KEY_LEFT)
-			windowList[glutGetWindow()]->StepPrevFrame();
+		this->display_width = display_width;
+		this->display_height = display_height;
+
+		char name[256];
+		sprintf(name, "%s.finishline", filename);
+		FILE *line = fopen(name, "r");
+		if (line)
+			fscanf(line, "%f,%f", &top, &bottom);
+
+		CreateWin32Window(filename);
+
+		InitCUDA();
+
+		InitOpenGL();
 	}
 
-	static void reshape(int window_x, int window_y)
+	void CreateWin32Window(char* filename)
 	{
-		glViewport(0, 0, window_x, window_y);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
+		HINSTANCE hInstance = GetModuleHandle(NULL);
+
+		WNDCLASS wc;
+		wc.cbClsExtra = 0;
+		wc.cbWndExtra = 0;
+		wc.hbrBackground = (HBRUSH)COLOR_BACKGROUND;
+		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wc.hIcon = NULL;
+		wc.hInstance = hInstance;
+		wc.lpfnWndProc = MyWindowProc;
+		wc.lpszClassName = TEXT("Wayne");
+		wc.lpszMenuName = 0;
+		wc.style = CS_OWNDC;
+		RegisterClass(&wc);
+
+		RECT rect;
+
+		SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
+		AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
+		hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
+
+		ShowWindow(hwnd, SW_SHOW);
+
+		hdc = GetDC(hwnd);
+
+		PIXELFORMATDESCRIPTOR pfd = { 0 };
+		pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+		pfd.nVersion = 1;
+		pfd.dwFlags = PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW;
+		pfd.iPixelType = PFD_TYPE_RGBA;
+		pfd.cColorBits = 24;
+		pfd.cDepthBits = 32;
+
+		int chosenPixelFormat = ChoosePixelFormat(hdc, &pfd);
+		SetPixelFormat(hdc, chosenPixelFormat, &pfd);
+
+		HGLRC hglrc = wglCreateContext(hdc);
+
+		wglMakeCurrent(hdc, hglrc);
 	}
 
-	void CreateMyWindow(int monitor)
+	void Bind(__int64 value)
 	{
-		glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-
-		glutInitWindowSize(display_width, display_height);
-
-		//num = 0;
-		//EnumDisplayMonitors(NULL, NULL, ListMonitors, 0);
-
-		windowId = glutCreateWindow("video");
-		windowList[windowId] = this;
-
-		reshape(display_width, display_height);
-
-		//glutPositionWindow(x[monitor] - 8, y[monitor]/* - 31 */);
-
-		//glutDisplayFunc(display);
-		//glutKeyboardFunc(keyboard);
-		//glutReshapeFunc(reshape);
-		//glutSpecialFunc(special);
+		SetWindowLongPtr(hwnd, GWLP_USERDATA, value);
+		SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
 	}
 
-	void InitRender()
+	void InitOpenGL()
 	{
 		glGenTextures(1, &gl_texid);
 
@@ -138,7 +121,9 @@ public:
 
 		const char *gl_shader_code = "!!ARBfp1.0\nTEX result.color, fragment.texcoord, texture[0], RECT; \nEND";
 		glGenProgramsARB(1, &gl_shader);
+
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, gl_shader);
+
 		glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei)strlen(gl_shader_code), (GLubyte *)gl_shader_code);
 
 		typedef bool (APIENTRY *PFNWGLSWAPINTERVALEXTPROC)(int interval);
@@ -147,7 +132,7 @@ public:
 		wglSwapIntervalEXT(0);
 	}
 
-	void InitContext()
+	void InitCUDA()
 	{
 		GLenum OK = glewInit();
 
@@ -155,17 +140,85 @@ public:
 		CHECK(cuDeviceGet(&device, 0));
 
 		context = 0;
-		CHECK(cuGLCtxCreate(&context, CU_CTX_BLOCKING_SYNC, device));
-
-		lock = 0;
-		CHECK(cuvidCtxLockCreate(&lock, context));
+		CHECK(cuCtxCreate(&context, CU_CTX_BLOCKING_SYNC, device));
 	}
 
-	void RenderFrame(GLuint pbo)
+	void FirstFrame(VideoFrame *frame)
 	{
-		//glutSetWindowTitle(videoBuffer->Info());
+		first = frame->pts;
+		RenderFrame(frame, 0, 0);
+	}
 
-		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, pbo);
+	void MoveLine(char direction)
+	{
+		if (top == 0)
+			top = bottom = (float)display_width / 2;
+
+		if (direction == 'Q' || direction == 'A')
+			top--;
+		if (direction == 'A' || direction == 'Z')
+			bottom--;
+		if (direction == 'W' || direction == 'D')
+			top++;
+		if (direction == 'D' || direction == 'X')
+			bottom++;
+
+		RenderFrame(latest, 0, 0);
+	}
+
+	bool drawing = false;
+
+	void StartRectangle(LPARAM lParam)
+	{
+		rect.left = rect.right = GET_X_LPARAM(lParam);
+		rect.top = rect.bottom = GET_Y_LPARAM(lParam);
+
+		drawing = true;
+		RenderFrame(latest, 0, 0);
+	}
+
+	void StretchRectangle(LPARAM lParam)
+	{
+		if (drawing)
+		{
+			rect.right = GET_X_LPARAM(lParam);
+			rect.bottom = GET_Y_LPARAM(lParam);
+			RenderFrame(latest, 0, 0);
+		}
+	}
+
+	void DoneRectangle()
+	{
+		drawing = false;
+	}
+
+	int fps = 0;
+
+	void RenderFrame(VideoFrame *frame, int mode, int speed)
+	{
+		Trace("RenderFrame(%ld);", frame->pts);
+		latest = frame;
+
+		int currentRate = UpdateFrameRate();
+
+		if (currentRate >= 0)
+			fps = currentRate;
+
+		char title[128];
+		sprintf_s(title, "mode = %d, speed = %d, pts = %lld, fps = %d, lum = %p", mode, speed, frame->pts, fps*speed, frame->luminance);
+		SetWindowTextA(hwnd, title);
+
+		if (time_handler)
+			time_handler(first, frame->pts);
+
+		glViewport(0, 0, (int)(display_width), (int)(display_height));
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
+
+		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, frame->gl_pbo);
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, gl_texid);
 		glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, display_width, display_height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
 		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
@@ -174,7 +227,6 @@ public:
 		glDisable(GL_DEPTH_TEST);
 
 		glBegin(GL_QUADS);
-		{
 			glTexCoord2f(0, (float)display_height);
 			glVertex2f(0, 0);
 			glTexCoord2f((float)display_width, (float)display_height);
@@ -183,103 +235,46 @@ public:
 			glVertex2f(1, 1);
 			glTexCoord2f(0, 0);
 			glVertex2f(0, 1);
-		}
 		glEnd();
 
 		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
+		
+		if (top > 0)
+		{
+			glEnable(GL_LINE_SMOOTH);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+			glLineWidth(10);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glBegin(GL_LINES);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glVertex2f(bottom / display_width, 0);
+			glVertex2f(top / display_width, 1);
+			glEnd();
+		}
+
+		if (rect.right != rect.left)
+		{
+			glLineWidth(1);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glBegin(GL_LINE_STRIP);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.top / display_height);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.bottom / display_height);
+			glVertex2f((float)rect.right / display_width, 1.0f-(float)rect.bottom / display_height);
+			glVertex2f((float)rect.right / display_width, 1.0f-(float)rect.top / display_height);
+			glVertex2f((float)rect.left / display_width, 1.0f-(float)rect.top / display_height);
+			glEnd();
+		}
+
 		glFlush();
-		glutSwapBuffers();
-		glutPostRedisplay();
+		SwapBuffers(hdc);
 	}
 
-	void FastForw()
-	{
-		if (mode == PLAY)
-			speed *= 2;
-		else
-			speed = 2;
-		mode = PLAY;
-		glutPostRedisplay();
-	}
 
-	void Play()
-	{
-		speed = 1;
-		mode = PLAY;
-		glutPostRedisplay();
-	}
-	
-	void Pause()
-	{
-		mode = PAUSE;
-	}
-
-	void PlayPause()
-	{
-		if (mode == PAUSE)
-			Play();
-		else
-			Pause();
-	}
-
-	void Rewind()
-	{
-		if (mode == REWIND)
-			speed *= 2;
-		else
-			speed = 1;
-		mode = REWIND;
-		glutPostRedisplay();
-	}
-
-	void StepNextFrame()
-	{
-		if (mode == PAUSE)
-			RenderFrame(videoBuffer->NextFrame());
-		else
-			mode = PAUSE;
-	}
-
-	void StepPrevFrame()
-	{
-		if (mode == PAUSE)
-			RenderFrame(videoBuffer->PrevFrame());
-		else
-			mode = PAUSE;
-	}
-
-	void Render()
-	{
-		if (mode == PLAY)
-		{
-			if (speed == 1)
-			{
-				RenderFrame(videoBuffer->NextFrame());
-				UpdateFrameRate();
-			}
-			else
-				RenderFrame(videoBuffer->FastForwardImage(speed));
-
-			//glutPostRedisplay();
-		}
-		else if (mode == REWIND)
-		{
-			if (speed == 1)
-				RenderFrame(videoBuffer->PrevFrame());
-			else
-				RenderFrame(videoBuffer->FastRewindImage(speed));
-
-			//glutPostRedisplay();
-		}
-	}
-
-	void GotoTime(CUvideotimestamp pts)
-	{
-		RenderFrame(videoBuffer->GotoTime(pts));
-	}
-
-	void UpdateFrameRate()
+	int UpdateFrameRate()
 	{
 		frameCount++;
 		high_resolution_clock::time_point now = high_resolution_clock::now();
@@ -287,11 +282,12 @@ public:
 
 		if (time_span.count() > 1)
 		{
-			char title[128];
-			sprintf_s(title, "%d", frameCount);
-			//glutSetWindowTitle(title);
+			int result = frameCount;
 			frameCount = 0;
 			start = now;
+			return result;
 		}
+		else
+			return -1;
 	}
 };
