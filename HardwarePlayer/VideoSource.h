@@ -157,7 +157,7 @@ public:
 		while (!waiting)
 			Sleep(1);
 
-		SendEndOfStream();
+		//SendEndOfStream();
 	}
 
 	void Goto(CUvideotimestamp pts)

@@ -113,11 +113,11 @@ public:
 	{
 		glGenTextures(1, &gl_texid);
 
-		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, gl_texid);
-		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, display_width, display_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+		glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
+		glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA8, display_width, display_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
 		const char *gl_shader_code = "!!ARBfp1.0\nTEX result.color, fragment.texcoord, texture[0], RECT; \nEND";
 		glGenProgramsARB(1, &gl_shader);
@@ -192,21 +192,19 @@ public:
 		drawing = false;
 	}
 
-	int fps = 0;
-
 	void RenderFrame(VideoFrame *frame, int mode, int speed)
 	{
 		Trace("RenderFrame(%ld);", frame->pts);
 		latest = frame;
 
-		int currentRate = UpdateFrameRate();
+		int fps = UpdateFrameRate();
 
-		if (currentRate >= 0)
-			fps = currentRate;
-
-		char title[128];
-		sprintf_s(title, "mode = %d, speed = %d, pts = %lld, fps = %d, lum = %p", mode, speed, frame->pts, fps*speed, frame->luminance);
-		SetWindowTextA(hwnd, title);
+		if (fps >= 0)
+		{
+			char title[128];
+			sprintf_s(title, "mode = %d, speed = %d, pts = %lld, fps = %d, lum = %lld", mode, speed, frame->pts, fps*speed, frame->luminance);
+			SetWindowTextA(hwnd, title);
+		}
 
 		if (time_handler)
 			time_handler(first, frame->pts);
@@ -218,10 +216,10 @@ public:
 		glLoadIdentity();
 		glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
 
-		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, frame->gl_pbo);
-		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, gl_texid);
-		glTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, display_width, display_height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
-		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame->gl_pbo);
+		glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
+		glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, display_width, display_height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, gl_shader);
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glDisable(GL_DEPTH_TEST);
@@ -237,7 +235,7 @@ public:
 			glVertex2f(0, 1);
 		glEnd();
 
-		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+		glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
 		
 		if (top > 0)

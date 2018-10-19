@@ -3,6 +3,7 @@
 #define NumFrames	10
 
 
+
 class VideoBuffer
 {
 private:
@@ -14,13 +15,16 @@ private:
 	int num_fields;
 	CUdeviceptr totalLuminance;
 
-/*
-	char* Info()
-	{
-		sprintf_s(title, "%lld <= %lld (%lld) <= %lld", First(), current, (current - First())/TIME_PER_FIELD, last);
-		return title;
-	}
-*/
+	cv::Ptr<cv::BackgroundSubtractor> mog2;
+	cv::Ptr<cv::cuda::Filter>morphDilate;
+
+	/*
+		char* Info()
+		{
+			sprintf_s(title, "%lld <= %lld (%lld) <= %lld", First(), current, (current - First())/TIME_PER_FIELD, last);
+			return title;
+		}
+	*/
 
 	VideoFrame* CreateFrameFor(CUvideotimestamp pts)
 	{
@@ -60,6 +64,60 @@ private:
 		return hostResult;
 	}
 
+    void OpenCVStuff(CUdeviceptr pDecodedFrame, unsigned int decodePitch)
+	{
+		//std::vector<int> y_pos;
+		//std::vector<int> x_pos;
+
+		//cv::cuda::GpuMat dimgO(cv::Size(decoder->decoderParams.ulWidth, decoder->decoderParams.ulHeight), CV_8UC1, (void*)(pDecodedFrame), decodePitch);
+
+		//cv::cuda::GpuMat dimg;
+		//cv::cuda::resize(dimgO, dimg, cv::Size(480, 270), 0, 0, 1);
+		//cv::cuda::GpuMat roi(dimg, cv::Rect(80, 80, 220, 190));
+
+		//cv::cuda::GpuMat d_fgmask;
+		//mog2->apply(roi, d_fgmask);
+		//mog2->apply(dimgO, d_fgmask);
+
+		/*
+		morphDilate->apply(d_fgmask, d_fgmask);
+		
+		cv::Mat fgmask;
+		d_fgmask.download(fgmask);
+
+		cv::Mat stats, centroids, labelImage;
+		int nLabels = cv::connectedComponentsWithStats(fgmask, labelImage, stats, centroids, 8, CV_32S);
+
+	
+		cv::Mat mask(labelImage.size(), CV_8UC1, cv::Scalar(0));
+		
+		for (int i = 1; i < nLabels; i++)
+		{
+			if (stats.at<int>(i, 4) > 200) {
+				mask = mask | (labelImage == i);
+				std::vector<int> prev_x = x_pos;
+				std::vector<int> prev_y = y_pos;
+
+				x_pos.push_back(stats.at<int>(i, cv::CC_STAT_LEFT) + stats.at<int>(i, cv::CC_STAT_WIDTH));
+				y_pos.push_back(stats.at<int>(i, cv::CC_STAT_TOP) + stats.at<int>(i, cv::CC_STAT_HEIGHT));
+
+				cv::Rect r(cv::Rect(cv::Point(stats.at<int>(i, cv::CC_STAT_LEFT), stats.at<int>(i, cv::CC_STAT_TOP)), cv::Size(stats.at<int>(i, cv::CC_STAT_WIDTH), stats.at<int>(i, cv::CC_STAT_HEIGHT))));
+				cv::Rect rO(cv::Rect(cv::Point(stats.at<int>(i, cv::CC_STAT_LEFT) + 80, stats.at<int>(i, cv::CC_STAT_TOP) + 80) * 4, cv::Size(stats.at<int>(i, cv::CC_STAT_WIDTH) * 4, stats.at<int>(i, cv::CC_STAT_HEIGHT) * 4)));
+				cv::cuda::GpuMat i_dimgO(dimgO, rO);
+				cv::Mat i_imgO;
+				i_dimgO.download(i_imgO);
+
+				if (x_pos.back() > 145 && x_pos.back() < 170) {
+					//finish line
+				}
+				cv::imshow("Show", i_imgO);
+				cv::waitKey(1000);
+				cv::destroyAllWindows();
+			}
+		}
+	*/
+	}
+
 	long long ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo, RECT *SearchRectangle)
 	{
 		long long luminance = 0;
@@ -76,9 +134,11 @@ private:
 		CUdeviceptr pDecodedFrame;
 		CHECK(cuvidMapVideoFrame(decoder->decoder, frameInfo.picture_index, &pDecodedFrame, &decodePitch, &params));
 
+		OpenCVStuff(pDecodedFrame, decodePitch);
+
 		size_t texturePitch = 0;
 		CUdeviceptr  pInteropFrame = 0;
-		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, pbo));
+		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, pbo)); // deprecated?
 
 		int display_width = format.display_area.right - format.display_area.left;
 		int display_height = format.display_area.bottom - format.display_area.top;
@@ -92,7 +152,7 @@ private:
 		if (SearchRectangle)
 			luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, display_width, display_height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
 
-		CHECK(cuGLUnmapBufferObject(pbo));
+		CHECK(cuGLUnmapBufferObject(pbo)); // deprecated?
 		CHECK(cuvidUnmapVideoFrame(decoder->decoder, pDecodedFrame));
 
 		return luminance;
@@ -126,7 +186,7 @@ private:
 
 	CUvideotimestamp First()
 	{
-		return last - (NumFrames-1) * TIME_PER_FIELD;
+		return last - (NumFrames - 1) * TIME_PER_FIELD;
 	}
 
 public:
@@ -153,6 +213,10 @@ public:
 		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
 
 		CHECK(cuMemAlloc(&totalLuminance, sizeof(long long)));
+		
+		mog2 = cv::cuda::createBackgroundSubtractorMOG2(500, 14, false);
+		cv::Mat kernelDilate = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2));
+		morphDilate = cv::cuda::createMorphologyFilter(cv::MORPH_DILATE, CV_8UC1, kernelDilate);
 
 		decoder->Init();
 	}

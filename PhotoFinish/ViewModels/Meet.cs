@@ -418,13 +418,13 @@ namespace PhotoFinish
             if (CurrentEntry == null || CurrentEntry.Race == null)
                 return;
 
-            if (StartTimeStamp == null)
+            if (StartTimeStamp == null || StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename)
             {
                 StartTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.StartTime.filename);
                 NativeVideo.OpenVideo(startPlayer, Directory + CurrentEntry.Race.StartTime.filename);
             }
 
-            if (FinishTimeStamp == null)
+            if (FinishTimeStamp == null || FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
             {
                 FinishTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.FinishFile);
                 NativeVideo.OpenVideo(finishPlayer, Directory + CurrentEntry.Race.FinishFile);

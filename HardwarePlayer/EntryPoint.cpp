@@ -1,3 +1,5 @@
+#define CUDA_ENABLE_DEPRECATED
+
 #include <stdio.h>
 #include <io.h>
 #include <inttypes.h>
@@ -12,12 +14,31 @@
 #include <GL/GL.h>
 #include <cuda.h>
 #include <cudaGL.h>
+//#include <cuda_gl_interop.h>
 #include "nvcuvid.h"
+#include <opencv/cv.hpp>
+#include "opencv2/core.hpp"
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include "opencv2/cudaimgproc.hpp"
+#include "opencv2/cudabgsegm.hpp"
+#include "opencv2/video.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/features2d.hpp"
+#include "opencv2/cudaobjdetect.hpp"
+#include <opencv2/cudawarping.hpp>
+#include "opencv2/cudafilters.hpp"
+
+
+//using namespace cv;
+//using namespace cv::cuda;
 
 LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
 void Trace(const char* format, ...)
 {
+	/*
 	char msg[1024];
 	va_list argptr;
 	va_start(argptr, format);
@@ -25,6 +46,7 @@ void Trace(const char* format, ...)
 	va_end(argptr);
 	OutputDebugStringA(msg);
 	OutputDebugStringA("\n");
+	*/
 }
 
 #define BATCH 1000
@@ -90,6 +112,7 @@ extern "C" __declspec(dllexport) void Rewind(VideoPlayer *player)
 extern "C" __declspec(dllexport) void FastForward(VideoPlayer *player)
 {
 	player->FastForw();
+	cv::waitKey(0);
 }
 
 extern "C" __declspec(dllexport) void PlayPause(VideoPlayer *player)
@@ -109,5 +132,5 @@ extern "C" __declspec(dllexport) void Pause(VideoPlayer *player)
 
 extern "C" __declspec(dllexport) void Init()
 {
-	CHECK(cuInit(0));
+ 	CHECK(cuInit(0));
 }
