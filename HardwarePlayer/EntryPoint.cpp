@@ -30,9 +30,14 @@
 #include <opencv2/cudawarping.hpp>
 #include "opencv2/cudafilters.hpp"
 
-
 //using namespace cv;
 //using namespace cv::cuda;
+
+extern "C"
+{
+	typedef void(__stdcall *eventhandler)(long long);
+	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
+}
 
 LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -54,6 +59,10 @@ void Trace(const char* format, ...)
 #define TIME_PER_FIELD 1800
 #define TIME_PER_FRAME (TIME_PER_FIELD*2)
 
+
+enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH };
+
+
 #include "FrameQueue.h"
 #include "VideoIndex.h"
 #include "VideoSource.h"
@@ -62,6 +71,7 @@ void Trace(const char* format, ...)
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
 #include "VideoPlayer.h"
+#include "SingletonWindow.h"
 #include "Audio.h"
 #include "Lenovo.h"
 
@@ -69,68 +79,64 @@ FILE _iob[] = { *stdin, *stdout, *stderr };
 extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
 
 
-extern "C" __declspec(dllexport) VideoPlayer* CreateVideoPlayer(eventhandler event_handler, timehandler time_handler, int monitor, HWND parent)
+extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhandler event_handler, timehandler time_handler)
 {
-	return new VideoPlayer(event_handler, time_handler, monitor);
+	return new VideoBuffer(filename, event_handler, time_handler);
 }
 
-extern "C" __declspec(dllexport) void OpenVideo(VideoPlayer *player, char* filename)
+extern "C" __declspec(dllexport) void GotoTime(VideoBuffer *newBuffer, CUvideotimestamp pts)
 {
-	player->PostOpenVideo(filename);
+	videoBuffer = newBuffer;
+	PostThreadMessage(eventLoopThread, Messages::GOTO, 0, (LPARAM)pts);
 }
 
-extern "C" __declspec(dllexport) void GotoTime(VideoPlayer *player, CUvideotimestamp pts)
+extern "C" __declspec(dllexport) void NextFrame()
 {
-	player->PostGoto(pts);
+	//player->PostStepNextFrame();
 }
 
-extern "C" __declspec(dllexport) void NextFrame(VideoPlayer *player)
+extern "C" __declspec(dllexport) void PrevFrame()
 {
-	player->PostStepNextFrame();
+	//player->PostStepPrevFrame();
 }
 
-extern "C" __declspec(dllexport) void PrevFrame(VideoPlayer *player)
+extern "C" __declspec(dllexport) void VisualSearch()
 {
-	player->PostStepPrevFrame();
+	//player->PostVisualSearch();
 }
 
-extern "C" __declspec(dllexport) void VisualSearch(VideoPlayer *player)
+extern "C" __declspec(dllexport) void FastForw()
 {
-	player->PostVisualSearch();
+	//player->FastForw();
 }
 
-extern "C" __declspec(dllexport) void FastForw(VideoPlayer *player)
+extern "C" __declspec(dllexport) void Rewind()
 {
-	player->FastForw();
+	//player->Rewind();
 }
 
-extern "C" __declspec(dllexport) void Rewind(VideoPlayer *player)
+extern "C" __declspec(dllexport) void FastForward()
 {
-	player->Rewind();
+	//player->FastForw();
 }
 
-extern "C" __declspec(dllexport) void FastForward(VideoPlayer *player)
+extern "C" __declspec(dllexport) void PlayPause()
 {
-	player->FastForw();
-	cv::waitKey(0);
+	//player->PostPlayPause();
 }
 
-extern "C" __declspec(dllexport) void PlayPause(VideoPlayer *player)
+extern "C" __declspec(dllexport) void Play()
 {
-	player->PostPlayPause();
+	//player->Play();
 }
 
-extern "C" __declspec(dllexport) void Play(VideoPlayer *player)
+extern "C" __declspec(dllexport) void Pause()
 {
-	player->Play();
-}
-
-extern "C" __declspec(dllexport) void Pause(VideoPlayer *player)
-{
-	player->Pause();
+	//player->Pause();
 }
 
 extern "C" __declspec(dllexport) void Init()
 {
- 	CHECK(cuInit(0));
+	CHECK(cuInit(0));
+	CreateSingleWindow(1);
 }

@@ -2,7 +2,7 @@
 
 #define NumFrames	10
 
-
+void RenderFrame(VideoFrame *frame);
 
 class VideoBuffer
 {
@@ -14,6 +14,9 @@ private:
 	CUVIDEOFORMAT format;
 	int num_fields;
 	CUdeviceptr totalLuminance;
+	CUvideotimestamp first;
+	timehandler time_handler;
+	eventhandler event_handler;
 
 	cv::Ptr<cv::BackgroundSubtractor> mog2;
 	cv::Ptr<cv::cuda::Filter>morphDilate;
@@ -190,19 +193,16 @@ private:
 	}
 
 public:
-
-	CUVIDEOFORMAT OpenVideo(char* filename)
+	VideoBuffer(char* filename, eventhandler event_handler, timehandler time_handler)
 	{
+		this->event_handler = event_handler;
+		this->time_handler = time_handler;
+
 		decoder = new VideoDecoder();
 		format = decoder->OpenVideo(filename);
 
 		num_fields = format.progressive_sequence ? 1 : 2;
 
-		return format;
-	}
-
-	void Init()
-	{
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(format.display_area.right - format.display_area.left, format.display_area.bottom - format.display_area.top);
 
@@ -213,23 +213,21 @@ public:
 		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
 
 		CHECK(cuMemAlloc(&totalLuminance, sizeof(long long)));
-		
+
 		mog2 = cv::cuda::createBackgroundSubtractorMOG2(500, 14, false);
 		cv::Mat kernelDilate = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2));
 		morphDilate = cv::cuda::createMorphologyFilter(cv::MORPH_DILATE, CV_8UC1, kernelDilate);
 
 		decoder->Init();
-	}
-
-	void StartDecode()
-	{
 		decoder->Start();
+
+		FirstFrame();
 	}
 
 	VideoFrame* FirstFrame()
 	{
 		AppendNextFrame(NULL);
-		current = last - TIME_PER_FIELD;
+		first = current = last - TIME_PER_FIELD;
 		return GetFrame(current);
 	}
 
@@ -289,6 +287,14 @@ public:
 		return GetFrame(current);
 	}
 
+	void DisplayTime(CUvideotimestamp pts)
+	{
+		// round to nearest field frame ...
+		//CUvideotimestamp frames = (CUvideotimestamp)(((double)(pts - first) / TIME_PER_FIELD) + 0.5);
+		//CUvideotimestamp rounded = first + frames * TIME_PER_FIELD;
+		RenderFrame(GotoTime(pts));
+	}
+
 	VideoFrame* GotoTime(CUvideotimestamp pts)
 	{
 		Trace("VideoBuffer::GotoTime(%ld);", pts);
@@ -305,5 +311,17 @@ public:
 		current = pts;
 
 		return GetFrame(current);
+	}
+
+	void TimeEvent(CUvideotimestamp pts)
+	{
+		if (time_handler)
+			time_handler(first, pts);
+	}
+
+	void InputEvent(int keyDown)
+	{
+		if (event_handler)
+			event_handler(keyDown);
 	}
 };

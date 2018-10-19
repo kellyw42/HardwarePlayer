@@ -1,7 +1,6 @@
 #pragma once
 
-enum Mode { PLAYING, PAUSED, REWINDING, SEARCHING };
-enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH};
+/*
 
 
 class VideoPlayer
@@ -12,6 +11,7 @@ private:
 	int speed;
 	Mode mode = PAUSED;
 	eventhandler event_handler;
+	timehandler time_handler;
 	DWORD eventLoopThread = 0;
 
 public:
@@ -19,9 +19,10 @@ public:
 	{
 		Trace("VideoPlayer::VideoPlayer(%p, %p, %d);", event_handler, time_handler, monitor);
 		this->event_handler = event_handler;
+		this->time_handler = time_handler;
 		window = new VideoWindow(monitor, time_handler);
 
-		videoBuffer = new VideoBuffer();
+		videoBuffer = new VideoBuffer(null, event_handler, time_handler);
 
 		eventLoopThread = 0;
 		CreateThread(0, 0, EventLoop, this, 0, 0);
@@ -63,7 +64,7 @@ public:
 	void Open(char* filename)
 	{
 		Trace("VideoPlayer::Open(%s);", filename);
-		CUVIDEOFORMAT format = videoBuffer->OpenVideo(filename);
+		CUVIDEOFORMAT format = videoBuffer->OpenVideo(filename, event_handler, time_handler);
 
 		int display_width = (format.display_area.right - format.display_area.left);
 		int display_height = (format.display_area.bottom - format.display_area.top);
@@ -335,3 +336,4 @@ LRESULT CALLBACK MyWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 			return DefWindowProc(hWnd, Msg, wParam, lParam);
 	}
 }
+*/

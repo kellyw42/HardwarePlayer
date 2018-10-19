@@ -52,6 +52,9 @@
     <ClInclude Include="Lenovo.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SingletonWindow.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

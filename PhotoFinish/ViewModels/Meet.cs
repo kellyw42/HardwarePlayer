@@ -152,9 +152,6 @@ namespace PhotoFinish
             Athlete.LoadAthletePBs(this);
             Athlete.LoadRecords();
 
-            startPlayer = NativeVideo.CreateVideoPlayer(StartEventHandler, StartTimeHandler, 0);
-            finishPlayer = NativeVideo.CreateVideoPlayer(FinishEventHandler, FinishTimeHandler, 1);
-
             LoadMeet();
         }
 
@@ -421,17 +418,17 @@ namespace PhotoFinish
             if (StartTimeStamp == null || StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename)
             {
                 StartTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.StartTime.filename);
-                NativeVideo.OpenVideo(startPlayer, Directory + CurrentEntry.Race.StartTime.filename);
+                startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler);
             }
 
             if (FinishTimeStamp == null || FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
             {
                 FinishTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.FinishFile);
-                NativeVideo.OpenVideo(finishPlayer, Directory + CurrentEntry.Race.FinishFile);
+                finishPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.FinishFile, FinishEventHandler, FinishTimeHandler);
             }
 
+            //NativeVideo.GotoTime(finishPlayer, CurrentEntry.Race.StartTime.pts + CurrentEntry.Race.sync);
             NativeVideo.GotoTime(startPlayer, CurrentEntry.Race.StartTime.pts);
-            NativeVideo.GotoTime(finishPlayer, CurrentEntry.Race.StartTime.pts + CurrentEntry.Race.sync);
 
             focusedPlayer = startPlayer;
         }
@@ -587,7 +584,7 @@ namespace PhotoFinish
                     {
                         var startFile = Path.GetFileName(startFiles.First());
                         StartTimeStamp = new TimeStamp(this, null, 0, 0, startFile);
-                        NativeVideo.OpenVideo(startPlayer, Directory + startFile);
+                        startPlayer = NativeVideo.OpenVideo(Directory + startFile, StartEventHandler, StartTimeHandler);
                     }
                 }
                 {
@@ -596,7 +593,7 @@ namespace PhotoFinish
                     {
                         var finishFile = Path.GetFileName(finishFiles.First());
                         FinishTimeStamp = new TimeStamp(this, null, 0, 0, finishFile);
-                        NativeVideo.OpenVideo(finishPlayer, Directory + finishFile);
+                        finishPlayer = NativeVideo.OpenVideo(Directory + finishFile, FinishEventHandler, FinishTimeHandler);
                     }
                 }
             }

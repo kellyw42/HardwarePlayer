@@ -20,12 +20,13 @@ int CUDAAPI HandlePictureDisplay(void *a, CUVIDPARSERDISPINFO *p);
 class VideoDecoder
 {
 public:
-
 	FrameQueue* frameQueue;
 	VideoSource *source;
 	CUvideoparser parser;
 	CUvideodecoder decoder;
 	CUVIDEOFORMAT format;
+	CUVIDPARSERPARAMS parserParams;
+	CUVIDDECODECREATEINFO   decoderParams;
 
 	CUVIDEOFORMAT OpenVideo(char* filename)
 	{
@@ -44,9 +45,6 @@ public:
 
 		return format;
 	}
-
-	CUVIDPARSERPARAMS parserParams;
-	CUVIDDECODECREATEINFO   decoderParams;
 
 	void Init()
 	{
@@ -108,7 +106,7 @@ public:
 	void Start()
 	{
 		Trace("VideoDecoder::Start();");
-		Create(); // needed?
+		//Create(); // needed?
 		source->Start();
 	}
 
@@ -117,7 +115,7 @@ public:
 		Trace("VideoDecoder::Stop();");
 		frameQueue->Stop();
 		source->Stop();
-		Destroy(); // needed?
+		//Destroy(); // needed?
 		frameQueue->Start();
 	}
 
@@ -147,10 +145,6 @@ public:
 			if (frameQueue->dequeue(&info))
 			{
 				return info;
-			}
-			else
-			{
-				printf("missing\n");
 			}
 		}
 	}
