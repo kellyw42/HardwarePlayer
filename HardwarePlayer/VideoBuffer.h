@@ -1,6 +1,6 @@
 #pragma once
 
-#define NumFrames	10
+#define NumFrames	40
 
 void RenderFrame(VideoFrame *frame);
 

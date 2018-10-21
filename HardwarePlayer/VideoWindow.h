@@ -1,11 +1,16 @@
+using namespace std::chrono;
+
 VideoBuffer* videoBuffer;
 
+int frameCount = 0;
 int num, x[3], y[3];
+HWND hwnd;
 HDC hdc;
 GLuint gl_texid;
 GLuint gl_shader;
 long long prevLuminance = MAXLONGLONG;
 VideoFrame *latest;
+high_resolution_clock::time_point start = high_resolution_clock::now();
 
 BOOL ListMonitors(HMONITOR m, HDC h, LPRECT p, LPARAM u)
 {
@@ -88,9 +93,34 @@ void RenderOverlay()
 		RenderSearchBox(videoBuffer->searchRect);
 }
 
+int UpdateFrameRate()
+{
+	frameCount++;
+	high_resolution_clock::time_point now = high_resolution_clock::now();
+	duration<double> time_span = duration_cast<duration<double>>(now - start);
+
+	if (time_span.count() > 10)
+	{
+		int result = frameCount;
+		frameCount = 0;
+		start = now;
+		return result/10;
+	}
+	else
+		return -1;
+}
+
 void RenderFrame(VideoFrame *frame)
 {
 	Trace("RenderFrame(%ld);", frame->pts);
+	int rate = UpdateFrameRate();
+	if (rate > 0)
+	{
+		char msg[128];
+		sprintf(msg, "%d", rate);
+		SetWindowTextA(hwnd, msg);
+	}
+
 	latest = frame;
 	videoBuffer->TimeEvent(frame->pts);
 
@@ -173,7 +203,7 @@ void CreateWin32Window(int monitor)
 	RECT rect;
 	SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
 	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-	HWND hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
+	hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
 
 	SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
 
