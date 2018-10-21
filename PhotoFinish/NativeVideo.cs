@@ -32,9 +32,9 @@ namespace PhotoFinish
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void PrevFrame(IntPtr player);
+
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void VisualSearch(IntPtr player);
-
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GetAudio(String filename, [MarshalAs(UnmanagedType.LPArray, SizeConst = 48000)] float[] data, int start);

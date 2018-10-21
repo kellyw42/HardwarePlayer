@@ -16,17 +16,18 @@
   <ItemGroup>
     <ClInclude Include="Audio.h" />
     <ClInclude Include="cuviddec.h" />
+    <ClInclude Include="Helper.h" />
     <ClInclude Include="Lenovo.h" />
-    <ClInclude Include="SingletonWindow.h" />
+    <ClInclude Include="VideoConverter.h" />
+    <ClInclude Include="VideoPlayer.h" />
+    <ClInclude Include="VideoWindow.h" />
     <ClInclude Include="VideoBuffer.h" />
     <ClInclude Include="FrameQueue.h" />
     <ClInclude Include="nvcuvid.h" />
     <ClInclude Include="VideoDecoder.h" />
     <ClInclude Include="VideoFrame.h" />
     <ClInclude Include="VideoIndex.h" />
-    <ClInclude Include="VideoPlayer.h" />
     <ClInclude Include="VideoSource.h" />
-    <ClInclude Include="VideoWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

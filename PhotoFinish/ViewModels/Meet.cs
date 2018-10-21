@@ -35,6 +35,7 @@ namespace PhotoFinish
             }
         }
 
+/*
         public TimeStamp currentStartBang;
         public TimeStamp CurrentStartBang
         {
@@ -48,6 +49,7 @@ namespace PhotoFinish
             get { return currentFinishBang; }
             set { currentFinishBang = value; NativeVideo.GotoTime(finishPlayer, currentFinishBang.pts - 1800); }
         }
+*/
 
         private eventhandler audio1, audio2;
         private timehandler StartTimeHandler, FinishTimeHandler;
@@ -415,16 +417,16 @@ namespace PhotoFinish
             if (CurrentEntry == null || CurrentEntry.Race == null)
                 return;
 
-            if (StartTimeStamp == null || StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename)
-            {
-                StartTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.StartTime.filename);
-                startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler);
-            }
-
             if (FinishTimeStamp == null || FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
             {
                 FinishTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.FinishFile);
                 finishPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.FinishFile, FinishEventHandler, FinishTimeHandler);
+            }
+
+            if (StartTimeStamp == null || StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename)
+            {
+                StartTimeStamp = new TimeStamp(this, CurrentEntry.Race, 0, 0, CurrentEntry.Race.StartTime.filename);
+                startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler);
             }
 
             //NativeVideo.GotoTime(finishPlayer, CurrentEntry.Race.StartTime.pts + CurrentEntry.Race.sync);

@@ -22,9 +22,6 @@
     <ClInclude Include="VideoDecoder.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="VideoWindow.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="nvcuvid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -40,9 +37,6 @@
     <ClInclude Include="VideoIndex.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="VideoPlayer.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="VideoFrame.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -52,7 +46,16 @@
     <ClInclude Include="Lenovo.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="SingletonWindow.h">
+    <ClInclude Include="VideoWindow.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoConverter.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Helper.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoPlayer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

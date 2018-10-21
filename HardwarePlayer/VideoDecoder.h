@@ -1,18 +1,5 @@
 using namespace std::chrono;
 
-void CHECK(CUresult result)
-{
-	if (result != CUDA_SUCCESS)
-	{
-
-		char msg[256];
-		const char* e = msg;
-		cuGetErrorName(result, &e);
-		printf("WAK Error %d %s\n", result, e);
-		exit(1);
-	}
-}
-
 int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket);
 int CUDAAPI HandlePictureDecode(void *decoder, CUVIDPICPARAMS * pPicParams);
 int CUDAAPI HandlePictureDisplay(void *a, CUVIDPARSERDISPINFO *p);
@@ -30,6 +17,7 @@ public:
 
 	CUVIDEOFORMAT OpenVideo(char* filename)
 	{
+		Trace("VideoDecoder::OpenVideo(%s);", filename);
 		frameQueue = new FrameQueue();
 
 		CUVIDSOURCEPARAMS params;
@@ -105,40 +93,37 @@ public:
 
 	void Start()
 	{
-		Trace("VideoDecoder::Start();");
-		//Create(); // needed?
+		Create(); // needed?
 		source->Start();
 	}
 
 	void Stop()
 	{
-		Trace("VideoDecoder::Stop();");
 		frameQueue->Stop();
 		source->Stop();
-		//Destroy(); // needed?
+		Destroy(); // needed?
 		frameQueue->Start();
 	}
 
-	void Goto(CUvideotimestamp pts)
+	CUvideotimestamp Goto(CUvideotimestamp targetPts)
 	{
-		Trace("VideoDecoder::Goto(%ld);", pts);
 		Stop();
-		source->Goto(pts);
+		source->Goto(targetPts);
 		Start();
 		while (1)
 		{
-			CUvideotimestamp actual = frameQueue->Peek();
-			if (actual > 0)
+			CUvideotimestamp firstPts = frameQueue->Peek();
+			if (firstPts > 0)
 			{
-				//printf("first decoded = %lld\n", actual);
-				break;
+				Trace("first decoded = %lld\n", firstPts);
+				assert(firstPts <= targetPts);
+				return firstPts;
 			}
 		}
 	}
 
 	CUVIDPARSERDISPINFO FetchFrame()
 	{
-		Trace("VideoDecoder::FetchFrame();");
 		CUVIDPARSERDISPINFO info;
 		while (1)
 		{
@@ -176,7 +161,6 @@ int CUDAAPI HandlePictureDisplay(void *userData, CUVIDPARSERDISPINFO *p)
 {
 	Trace("HandlePictureDisplay(%ld);", p->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
-	//printf("enqueue PTS = %lld\n", p->timestamp);
 	container->frameQueue->enqueue(p);
 	return true;
 }

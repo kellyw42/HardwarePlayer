@@ -84,7 +84,14 @@ public:
 
 			size_t bytes_read = fread(buffer, 1, TS_PACKET_SIZE, file);
 			if (bytes_read == 0)
-				break;
+			{
+				if (packet_length > 0)
+					SendPacket();
+
+				SendEndOfStream();
+
+				Stop();
+			}
 
 			int pos = 0;
 
@@ -136,11 +143,6 @@ public:
 				packet_length += 188 - pos;
 			}
 		}
-
-		if (packet_length > 0)
-			SendPacket();
-
-		SendEndOfStream();
 	}
 
 	void Start()
@@ -166,7 +168,7 @@ public:
 		packet_length = 0;
  
 		__int64 pos = index->Lookup(pts);
-		Trace("VideoSource seek to pos = %lld", pos);
+		Trace("VideoSource seek pts = %lld, pos = %lld", pts, pos);
 		_fseeki64(file, pos, SEEK_SET);
 	}
 };

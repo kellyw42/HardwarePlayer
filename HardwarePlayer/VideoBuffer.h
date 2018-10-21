@@ -7,316 +7,148 @@ void RenderFrame(VideoFrame *frame);
 class VideoBuffer
 {
 private:
-	CUfunction NV12ToARGB, Luminance;
-	CUvideotimestamp current, last;
-	VideoFrame* frames[NumFrames];
+	VideoConverter * videoConverter;
 	VideoDecoder* decoder;
-	CUVIDEOFORMAT format;
 	int num_fields;
-	CUdeviceptr totalLuminance;
-	CUvideotimestamp first;
+	CUvideotimestamp displayed;
+	VideoFrame* frames[NumFrames];
+	CUvideotimestamp firstPts;
 	timehandler time_handler;
 	eventhandler event_handler;
 
-	cv::Ptr<cv::BackgroundSubtractor> mog2;
-	cv::Ptr<cv::cuda::Filter>morphDilate;
-
-	/*
-		char* Info()
-		{
-			sprintf_s(title, "%lld <= %lld (%lld) <= %lld", First(), current, (current - First())/TIME_PER_FIELD, last);
-			return title;
-		}
-	*/
+	CUvideotimestamp Index(CUvideotimestamp pts)
+	{
+		CUvideotimestamp frame = pts / TIME_PER_FIELD;
+		return frame % NumFrames;
+	}
 
 	VideoFrame* CreateFrameFor(CUvideotimestamp pts)
 	{
-		Trace("VideoBuffer::CreateFrameFor(%ld);", pts);
-		CUvideotimestamp frame = pts / TIME_PER_FIELD;
-		CUvideotimestamp index = frame % NumFrames;
+		CUvideotimestamp index = Index(pts);
+
 		frames[index]->pts = pts;
 		return frames[index];
 	}
 
 	VideoFrame* GetFrame(CUvideotimestamp pts)
 	{
-		Trace("VideoBuffer::GetFrame(%ld);", pts);
-		CUvideotimestamp frame = pts / TIME_PER_FIELD;
-		CUvideotimestamp index = frame % NumFrames;
-		assert(frames[index]->pts == pts);
-		return frames[index];
+		CUvideotimestamp index = Index(pts);
+
+		if (frames[index]->pts == pts)
+			return frames[index];
+		else
+			return NULL;
 	}
 
-	void  cudaLaunchNV12toARGBDrv(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstARGB, size_t nDestPitch, int width, int height)
+	VideoFrame* ConvertNextFrame(bool search)
 	{
-		dim3 block(32, 32, 1);
-		dim3 grid((width + (block.x - 1)) / block.x, (height + (block.y - 1)) / block.y, 1);
-		void *args[6] = { &d_srcNV12, &nSourcePitch, &d_dstARGB, &nDestPitch, &width, &height };
-
-		CHECK(cuLaunchKernel(NV12ToARGB, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
-	}
-
-	long long  cudaLaunchLuminance(CUdeviceptr d_srcNV12, size_t nSourcePitch, int width, int height, int left, int right, int top, int bottom)
-	{
-		void *args[7] = { &d_srcNV12, &nSourcePitch, &left, &right, &top, &bottom, &totalLuminance };
-
-		CHECK(cuLaunchKernel(Luminance, 1, 1, 1, 1, 1, 1, 0, 0, args, 0));
-
-		long long hostResult = 0;
-		cuMemcpyDtoH(&hostResult, totalLuminance, sizeof(long long));
-		return hostResult;
-	}
-
-    void OpenCVStuff(CUdeviceptr pDecodedFrame, unsigned int decodePitch)
-	{
-		//std::vector<int> y_pos;
-		//std::vector<int> x_pos;
-
-		//cv::cuda::GpuMat dimgO(cv::Size(decoder->decoderParams.ulWidth, decoder->decoderParams.ulHeight), CV_8UC1, (void*)(pDecodedFrame), decodePitch);
-
-		//cv::cuda::GpuMat dimg;
-		//cv::cuda::resize(dimgO, dimg, cv::Size(480, 270), 0, 0, 1);
-		//cv::cuda::GpuMat roi(dimg, cv::Rect(80, 80, 220, 190));
-
-		//cv::cuda::GpuMat d_fgmask;
-		//mog2->apply(roi, d_fgmask);
-		//mog2->apply(dimgO, d_fgmask);
-
-		/*
-		morphDilate->apply(d_fgmask, d_fgmask);
-		
-		cv::Mat fgmask;
-		d_fgmask.download(fgmask);
-
-		cv::Mat stats, centroids, labelImage;
-		int nLabels = cv::connectedComponentsWithStats(fgmask, labelImage, stats, centroids, 8, CV_32S);
-
-	
-		cv::Mat mask(labelImage.size(), CV_8UC1, cv::Scalar(0));
-		
-		for (int i = 1; i < nLabels; i++)
-		{
-			if (stats.at<int>(i, 4) > 200) {
-				mask = mask | (labelImage == i);
-				std::vector<int> prev_x = x_pos;
-				std::vector<int> prev_y = y_pos;
-
-				x_pos.push_back(stats.at<int>(i, cv::CC_STAT_LEFT) + stats.at<int>(i, cv::CC_STAT_WIDTH));
-				y_pos.push_back(stats.at<int>(i, cv::CC_STAT_TOP) + stats.at<int>(i, cv::CC_STAT_HEIGHT));
-
-				cv::Rect r(cv::Rect(cv::Point(stats.at<int>(i, cv::CC_STAT_LEFT), stats.at<int>(i, cv::CC_STAT_TOP)), cv::Size(stats.at<int>(i, cv::CC_STAT_WIDTH), stats.at<int>(i, cv::CC_STAT_HEIGHT))));
-				cv::Rect rO(cv::Rect(cv::Point(stats.at<int>(i, cv::CC_STAT_LEFT) + 80, stats.at<int>(i, cv::CC_STAT_TOP) + 80) * 4, cv::Size(stats.at<int>(i, cv::CC_STAT_WIDTH) * 4, stats.at<int>(i, cv::CC_STAT_HEIGHT) * 4)));
-				cv::cuda::GpuMat i_dimgO(dimgO, rO);
-				cv::Mat i_imgO;
-				i_dimgO.download(i_imgO);
-
-				if (x_pos.back() > 145 && x_pos.back() < 170) {
-					//finish line
-				}
-				cv::imshow("Show", i_imgO);
-				cv::waitKey(1000);
-				cv::destroyAllWindows();
-			}
-		}
-	*/
-	}
-
-	long long ConvertFrame(CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo, RECT *SearchRectangle)
-	{
-		long long luminance = 0;
-
-		CUVIDPROCPARAMS params;
-		memset(&params, 0, sizeof(CUVIDPROCPARAMS));
-		params.output_stream = 0;
-		params.progressive_frame = frameInfo.progressive_frame;
-		params.top_field_first = frameInfo.top_field_first;
-		params.unpaired_field = frameInfo.repeat_first_field < 0;
-		params.second_field = active_field;
-
-		unsigned int decodePitch = 0;
-		CUdeviceptr pDecodedFrame;
-		CHECK(cuvidMapVideoFrame(decoder->decoder, frameInfo.picture_index, &pDecodedFrame, &decodePitch, &params));
-
-		OpenCVStuff(pDecodedFrame, decodePitch);
-
-		size_t texturePitch = 0;
-		CUdeviceptr  pInteropFrame = 0;
-		CHECK(cuGLMapBufferObject(&pInteropFrame, &texturePitch, pbo)); // deprecated?
-
-		int display_width = format.display_area.right - format.display_area.left;
-		int display_height = format.display_area.bottom - format.display_area.top;
-
-		texturePitch /= display_height * 4;
-
-		cudaLaunchNV12toARGBDrv(pDecodedFrame, decodePitch, pInteropFrame, texturePitch, display_width, display_height);
-
-		//cuMemcpyDtoH(&luminance, pDecodedFrame, sizeof(luminance));
-
-		if (SearchRectangle)
-			luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, display_width, display_height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
-
-		CHECK(cuGLUnmapBufferObject(pbo)); // deprecated?
-		CHECK(cuvidUnmapVideoFrame(decoder->decoder, pDecodedFrame));
-
-		return luminance;
-	}
-
-	void AppendNextFrame(RECT *searchRectangle)
-	{
-		//RECT whole;
-		//whole.left = format.display_area.left;
-		//whole.top = format.display_area.top;
-		//whole.right = format.display_area.right;
-		//whole.bottom = format.display_area.bottom;
-
-		//if (searchRectangle == NULL)
-		//	searchRectangle = &whole;
-
-		Trace("VideoBuffer::AppendNextFrame();");
+		VideoFrame *first = NULL;
 		CUVIDPARSERDISPINFO frameInfo = decoder->FetchFrame();
 
 		for (int active_field = 0; active_field < num_fields; active_field++)
 		{
 			CUvideotimestamp pts = frameInfo.timestamp + active_field * TIME_PER_FIELD;
 			VideoFrame *frame = CreateFrameFor(pts);
-			frame->luminance = ConvertFrame(frameInfo, active_field, frame->gl_pbo, searchRectangle);
-			Trace("store field %d, pts=%ld in frame %p with lum %lld\n", active_field, pts, frame, frame->luminance);
-			last = frame->pts;
+			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame->gl_pbo, search ? &searchRect : NULL);
+			if (active_field == 0)
+				first = frame;
 		}
 
 		decoder->releaseFrame(&frameInfo);
+		return first;
 	}
 
-	CUvideotimestamp First()
+	VideoFrame* NextUntil(CUvideotimestamp targetPts, bool search)
 	{
-		return last - (NumFrames - 1) * TIME_PER_FIELD;
+		while (true)
+		{
+			VideoFrame *cached = GetFrame(targetPts);
+			if (cached != NULL)
+				return cached;
+			CUvideotimestamp latestPts = ConvertNextFrame(search)->pts;
+			assert(latestPts <= targetPts);
+		}
 	}
 
 public:
-	VideoBuffer(char* filename, eventhandler event_handler, timehandler time_handler)
+	float top, bottom;
+	RECT searchRect;
+	int width, height;
+
+	VideoBuffer(eventhandler event_handler, timehandler time_handler)
 	{
 		this->event_handler = event_handler;
 		this->time_handler = time_handler;
+	}
 
+	VideoFrame* Open(char* filename)
+	{
 		decoder = new VideoDecoder();
-		format = decoder->OpenVideo(filename);
+
+		CUVIDEOFORMAT format = decoder->OpenVideo(filename);
+
+		width = format.display_area.right - format.display_area.left;
+		height = format.display_area.bottom - format.display_area.top;
 
 		num_fields = format.progressive_sequence ? 1 : 2;
 
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(format.display_area.right - format.display_area.left, format.display_area.bottom - format.display_area.top);
 
-		CUmodule colourConversionModule;
-		CHECK(cuModuleLoad(&colourConversionModule, "ColourConversion.cubin"));
-
-		CHECK(cuModuleGetFunction(&NV12ToARGB, colourConversionModule, "NV12ToARGB"));
-		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
-
-		CHECK(cuMemAlloc(&totalLuminance, sizeof(long long)));
-
-		mog2 = cv::cuda::createBackgroundSubtractorMOG2(500, 14, false);
-		cv::Mat kernelDilate = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2, 2));
-		morphDilate = cv::cuda::createMorphologyFilter(cv::MORPH_DILATE, CV_8UC1, kernelDilate);
-
 		decoder->Init();
 		decoder->Start();
 
-		FirstFrame();
+		videoConverter = new VideoConverter();
+
+		return FirstFrame();
 	}
 
 	VideoFrame* FirstFrame()
 	{
-		AppendNextFrame(NULL);
-		first = current = last - TIME_PER_FIELD;
-		return GetFrame(current);
+		VideoFrame* firstFrame = ConvertNextFrame(NULL);
+		firstPts = firstFrame->pts;
+		return firstFrame;
 	}
 
-	VideoFrame* NextFrame(RECT *searchRectangle)
+	VideoFrame * GotoTime(CUvideotimestamp targetPts)
 	{
-		Trace("VideoBuffer::NextFrame();");
-		current += TIME_PER_FIELD;
+		if (targetPts < firstPts)
+			targetPts = firstPts;
 
-		while (current > last)
-			AppendNextFrame(searchRectangle);
+		VideoFrame *cached = GetFrame(targetPts);
+		if (cached != NULL)
+			return cached;
 
-		return GetFrame(current);
+		CUvideotimestamp fetchedPts = decoder->Goto(targetPts);
+		assert(fetchedPts <= targetPts);
+		return NextUntil(targetPts, false);
+	}
+
+	VideoFrame * NextFrame(bool search)
+	{
+		return NextUntil(displayed + TIME_PER_FIELD, search);
 	}
 
 	VideoFrame* PrevFrame()
 	{
-		Trace("VideoBuffer::PrevFrame();");
-		if (current > 0)
-		{
-			current -= TIME_PER_FIELD;
-			if (current < First())
-			{
-				//printf("--------------------------------------------------------------------------\n");
-				decoder->Goto(current - (NumFrames * TIME_PER_FIELD));
-				do
-				{
-					AppendNextFrame(NULL);
-					//printf("last = %lld < current = %lld\n", last, current);
-				} while (last < current);
-			}
-
-			return GetFrame(current);
-		}
-		else
-			return GetFrame(0);
+		return GotoTime(displayed - TIME_PER_FIELD);
 	}
 
 	VideoFrame* FastForwardImage(int speed)
 	{
-		Trace("VideoBuffer::FastForwardImage(%d);", speed);
-		decoder->Goto(current + speed * TIME_PER_FIELD);
-		do
-		{
-			AppendNextFrame(NULL);
-		} while (last <= current);
-
-		current = last;
-		return GetFrame(current);
+		return GotoTime(displayed + speed * TIME_PER_FIELD);
 	}
 
 	VideoFrame* FastRewindImage(int speed)
 	{
-		Trace("VideoBuffer::FastRewindImage(%d);", speed);
-		decoder->Goto(current - speed * TIME_PER_FIELD);
-		AppendNextFrame(NULL);
-		current = last - TIME_PER_FIELD;
-		return GetFrame(current);
-	}
-
-	void DisplayTime(CUvideotimestamp pts)
-	{
-		// round to nearest field frame ...
-		//CUvideotimestamp frames = (CUvideotimestamp)(((double)(pts - first) / TIME_PER_FIELD) + 0.5);
-		//CUvideotimestamp rounded = first + frames * TIME_PER_FIELD;
-		RenderFrame(GotoTime(pts));
-	}
-
-	VideoFrame* GotoTime(CUvideotimestamp pts)
-	{
-		Trace("VideoBuffer::GotoTime(%ld);", pts);
-
-		// Fixme: check if already in buffer!!!
-
-		decoder->Goto(pts);
-
-		do
-		{
-			AppendNextFrame(NULL);
-		} while (last < pts);
-
-		current = pts;
-
-		return GetFrame(current);
+		return GotoTime(displayed - speed * TIME_PER_FIELD);
 	}
 
 	void TimeEvent(CUvideotimestamp pts)
 	{
+		displayed = pts;
 		if (time_handler)
-			time_handler(first, pts);
+			time_handler(firstPts, pts);
 	}
 
 	void InputEvent(int keyDown)
