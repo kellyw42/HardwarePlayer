@@ -43,13 +43,19 @@ private:
 	VideoFrame* ConvertNextFrame(bool search)
 	{
 		VideoFrame *first = NULL;
+		StartTime(8);
 		CUVIDPARSERDISPINFO frameInfo = decoder->FetchFrame();
+		EndTime(8);
 
 		for (int active_field = 0; active_field < num_fields; active_field++)
 		{
 			CUvideotimestamp pts = frameInfo.timestamp + active_field * TIME_PER_FIELD;
 			VideoFrame *frame = CreateFrameFor(pts);
+
+			StartTime(3);
 			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame->gl_pbo, search ? &searchRect : NULL);
+			EndTime(3);
+
 			if (active_field == 0)
 				first = frame;
 		}

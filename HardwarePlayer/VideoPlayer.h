@@ -10,10 +10,20 @@ void Render()
 	{
 		case Mode::PLAYING:
 		{
+			VideoFrame *frame;
 			if (speed == 1)
-				RenderFrame(videoBuffer->NextFrame(false));
+			{
+				StartTime(4);
+				frame = videoBuffer->NextFrame(false);
+				EndTime(4);
+			}
 			else
-				RenderFrame(videoBuffer->FastForwardImage(speed));
+				frame = videoBuffer->FastForwardImage(speed);
+
+			StartTime(5);
+			RenderFrame(frame);
+			EndTime(5);
+
 			break;
 		}
 		case Mode::SEARCHING:
@@ -54,6 +64,8 @@ void Play()
 void Pause()
 {
 	mode = PAUSED;
+	recording = false;
+	DisplayAverages();
 }
 
 void FastForw()
@@ -107,8 +119,19 @@ void EventLoop()
 
 	while (1)
 	{
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		{
+		if (mode == Mode::PLAYING)
+			recording = true;
+
+		StartTime(0);
+		while (true)
+		{	
+			StartTime(1);
+			BOOL messageWaiting = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+			EndTime(1);
+
+			if (!messageWaiting)
+				break;
+
 			if (msg.hwnd)
 			{
 				TranslateMessage(&msg);
@@ -169,12 +192,19 @@ void EventLoop()
 			}
 		}
 
+		StartTime(2);
 		Render();
+		EndTime(2);
+
+		EndTime(0);
 	}
 }
 
 void StartRectangle(LPARAM lParam)
 {
+	if (videoBuffer == NULL)
+		return;
+
 	videoBuffer->searchRect.left = videoBuffer->searchRect.right = GET_X_LPARAM(lParam);
 	videoBuffer->searchRect.top = videoBuffer->searchRect.bottom = GET_Y_LPARAM(lParam);
 

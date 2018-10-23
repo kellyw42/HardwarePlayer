@@ -146,6 +146,8 @@ void RenderFrame(VideoFrame *frame)
 		glVertex2f(0, 1);
 	glEnd();
 
+	StartTime(6);
+
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame->gl_pbo);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
@@ -173,12 +175,17 @@ void RenderFrame(VideoFrame *frame)
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
 
+	EndTime(6);
+
 	RenderOverlay();
 
 	glFlush();
 
 	Trace("SwapBuffers(hdc)");
+
+	StartTime(7);
 	SwapBuffers(hdc);
+	EndTime(7);
 }
 
 LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
