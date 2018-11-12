@@ -52,6 +52,20 @@ void CHECK(CUresult result)
 	}
 }
 
+#define CHECK2(err)  __cudaSafeCall(err,__FILE__,__LINE__)
+
+inline void __cudaSafeCall(cudaError err, const char *file, const int line) 
+{
+	/*
+	if (cudaSuccess != err) 
+	{
+		printf("%s(%i) : cutilSafeCall() Runtime API error : %s.\n",
+			file, line, cudaGetErrorString(err));
+		exit(-1);
+	}
+	*/
+}
+
 using namespace std::chrono;
 
 

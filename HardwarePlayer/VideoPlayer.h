@@ -14,7 +14,7 @@ void Render()
 			if (speed == 1)
 			{
 				StartTime(4);
-				frame = videoBuffer->NextFrame(false);
+				frame = videoBuffer->SkipFrames(2);
 				EndTime(4);
 			}
 			else
@@ -108,9 +108,15 @@ void StepPrevFrame()
 		mode = PAUSED;
 }
 
-void Search()
+void Search(VideoBuffer *startBuffer, VideoBuffer *finishBuffer)
 {
 	mode = Mode::SEARCHING;
+	if (videoBuffer == finishBuffer)
+	{
+		videoBuffer = startBuffer;
+		RenderFrame(startBuffer->GotoTime(startBuffer->firstPts + finishBuffer->displayed - finishBuffer->firstPts));
+	}
+		// Fixme: plus sync???
 }
 
 void EventLoop()
@@ -175,7 +181,9 @@ void EventLoop()
 				}
 				case Messages::VISUALSEARCH:
 				{
-					Search();
+					VideoBuffer* start = (VideoBuffer*)msg.wParam;
+					VideoBuffer* finish = (VideoBuffer*)msg.lParam;
+					Search(start, finish);
 					break;
 				}
 				case Messages::FASTFORWARD:
@@ -240,6 +248,8 @@ void MoveLine(char direction)
 		videoBuffer->top++;
 	if (direction == 'D' || direction == 'X')
 		videoBuffer->bottom++;
+
+	videoBuffer->SaveFinishLine();
 
 	RenderFrame(latest);
 }

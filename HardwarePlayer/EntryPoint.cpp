@@ -1,4 +1,4 @@
-#define CUDA_ENABLE_DEPRECATED
+//#define CUDA_ENABLE_DEPRECATED
 
 #include <stdio.h>
 #include <io.h>
@@ -14,8 +14,10 @@
 #include <GL/GL.h>
 #include <cuda.h>
 #include <cudaGL.h>
+#include <cuda_gl_interop.h>
 #include "nvcuvid.h"
-#include <opencv/cv.hpp>
+
+//#include <opencv/cv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/core.hpp>
@@ -67,9 +69,9 @@ extern "C" __declspec(dllexport) void PrevFrame()
 	PostThreadMessage(eventLoopThread, Messages::STEPPREVFRAME, 0, 0);
 }
 
-extern "C" __declspec(dllexport) void VisualSearch()
+extern "C" __declspec(dllexport) void VisualSearch(VideoBuffer * startPlayer, VideoBuffer * finishPlayer)
 {
-	PostThreadMessage(eventLoopThread, Messages::VISUALSEARCH, 0, 0);
+	PostThreadMessage(eventLoopThread, Messages::VISUALSEARCH, (WPARAM)startPlayer, (LPARAM)finishPlayer);
 }
 
 extern "C" __declspec(dllexport) void Rewind()

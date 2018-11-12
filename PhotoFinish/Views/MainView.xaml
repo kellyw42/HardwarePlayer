@@ -50,6 +50,10 @@
                 </MenuItem>
                 <MenuItem Header="_Upload" Padding="12,2,12,2" Command="{Binding UploadVideoCommand}">
                 </MenuItem>
+                <MenuItem Header="View _Start" Padding="12,2,12,2" Command="{Binding ViewStartCommand}">
+                </MenuItem>
+                <MenuItem Header="View _Finish" Padding="12,2,12,2" Command="{Binding ViewFinishCommand}">
+                </MenuItem>                
             </Menu>
             <Label FontSize="21" FontFamily="Microsoft Sans Serif" Margin="80,0,10,0" Content="Meet Date:"/>
             <ComboBox FontSize="21" FontFamily="Microsoft Sans Serif" Name="meetDates" ItemsSource="{Binding Dates}" SelectedItem="{Binding Path=CurrentMeet, Mode=TwoWay}">
@@ -78,11 +82,11 @@
             <ListView.View>
                 <GridView>
                     <GridViewColumn Width="Auto" Header="Number" DisplayMemberBinding="{Binding Heat.Number}"/>
-                    <GridViewColumn Width="Auto" Header="Start Time" DisplayMemberBinding="{Binding Race.StartTime}"/>
+                    <GridViewColumn Width="110" Header="Start Time" DisplayMemberBinding="{Binding Race.StartTime}"/>
                     <GridViewColumn Width="Auto" Header="Distance" DisplayMemberBinding="{Binding Distance}"/>
                     <GridViewColumn Width="Auto" Header="Finish Times" DisplayMemberBinding="{Binding Race.TimeCount}"/>
                     <GridViewColumn Width="Auto" Header="Athletes" DisplayMemberBinding="{Binding Heat.AthleteCount}"/>
-                    <GridViewColumn Width="400" Header="Ages" DisplayMemberBinding="{Binding Heat.Ages}"/>
+                    <GridViewColumn Width="300" Header="Ages" DisplayMemberBinding="{Binding Heat.Ages}"/>
                 </GridView>
             </ListView.View>
         </ListView>

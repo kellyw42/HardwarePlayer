@@ -1,4 +1,4 @@
-//nvcc --cubin -O3 -gencode=arch=compute_30,code=sm_30  ColourConversion.cu -odir ..\x64\Debug
+//nvcc --cubin -O3 -gencode=arch=compute_75,code=sm_75  ColourConversion.cu -odir ..\x64\Debug
 
 extern "C" __global__ void NV12ToARGB(unsigned char *srcImage, size_t nSourcePitch, unsigned int *dstImage, size_t nDestPitch, int width, int height)
 {

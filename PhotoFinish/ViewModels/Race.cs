@@ -1,6 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System;
+using System.IO;
 
 namespace PhotoFinish
 {
@@ -37,6 +37,33 @@ namespace PhotoFinish
             {
                 finishTimes[i] = new ObservableCollection<TimeStamp>();
             }
+        }
+
+        private string Basename(string fullpath)
+        {
+            return new FileInfo(fullpath).Name;
+        }
+
+        public void Save(StreamWriter writer)
+        {
+            var bang = 0;
+            var audio_sync = 0;
+
+            writer.Write("{0},{1},{2},{3},{4},{5},{6},{7}", Basename(StartTime.filename), StartTime.start, StartTime.pts, bang, (IsSync ? "Sync" : (heat != null ? heat.Distance : "")), Basename(FinishFile), sync, audio_sync);
+            foreach (var lane in finishTimes)
+            {
+                writer.Write(',');
+                bool firstInLane = true;
+                foreach (var time in lane)
+                {
+                    if (firstInLane)
+                        firstInLane = false;
+                    else
+                        writer.Write('.');
+                    writer.Write("{0}|{1}", time.start, time.pts);
+                }
+            }
+            writer.WriteLine();
         }
 
         public void OnPropertyRaised(string propertyname)

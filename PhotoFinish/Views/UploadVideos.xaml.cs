@@ -184,6 +184,8 @@ namespace PhotoFinish.Views
                 collection.Move(collection.IndexOf(sortableList[i]), i);
         }
 
+        static object uploadedFileLock = new object();
+
         private void UpdateFileList()
         {
             weird = false;
@@ -197,13 +199,16 @@ namespace PhotoFinish.Views
 
             previously_uploaded.Clear();
 
-            string file0 = directory() + "uploaded.txt";
-            if (File.Exists(file0))
-                using (StreamReader reader = new StreamReader(file0))
-                {
-                    while (!reader.EndOfStream)
-                        previously_uploaded.Add(reader.ReadLine());
-                }
+            lock (uploadedFileLock)
+            {
+                string file0 = directory() + "uploaded.txt";
+                if (File.Exists(file0))
+                    using (StreamReader reader = new StreamReader(file0))
+                    {
+                        while (!reader.EndOfStream)
+                            previously_uploaded.Add(reader.ReadLine());
+                    }
+            }
 
             Files.Clear();
 
@@ -316,7 +321,7 @@ namespace PhotoFinish.Views
                 if (cancel.IsCancellationRequested)
                     break;
 
-                using (FileStream input = File.Open(file.FullName, FileMode.Open))
+                using (FileStream input = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     UpdateFile(file, "Uploading ...");
                     Status = String.Format("Uploading file {0} of {1} ...", i++, files.Count);
@@ -330,9 +335,12 @@ namespace PhotoFinish.Views
 
         void UpdateFile(FileInfo info, string status)
         {
-            if (status == "Uploaded")
-                using (var uploadedFiles = new StreamWriter(directory() + "uploaded.txt", true))
-                    uploadedFiles.WriteLine(Record(info));
+            lock (uploadedFileLock)
+            {
+                if (status == "Uploaded")
+                    using (var uploadedFiles = new StreamWriter(directory() + "uploaded.txt", true))
+                        uploadedFiles.WriteLine(Record(info));
+            }
 
             foreach (var f in Files)
                 if (f.info == info)

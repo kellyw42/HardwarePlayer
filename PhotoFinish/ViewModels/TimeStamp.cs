@@ -14,8 +14,7 @@ namespace PhotoFinish
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private Race race { get; set; }
-
+        public Race race { get; set; }
         public long start { get; set; }
         public long pts { get; set; }
         public string filename { get; set; }
@@ -101,6 +100,20 @@ namespace PhotoFinish
                 var diff = ElapsedSinceRaceStart;
                 return ((diff < TimeSpan.Zero) ? "-" : "") + diff.ToString(@"m\:ss\.ff");
             }
+        }
+
+        public TimeStamp(TimeStamp old)
+        {
+            this.meet = old.meet;
+            this.pts = old.pts;
+            this.race = old.race;
+            this.start = old.start;
+            this.filename = old.filename;
+        }
+
+        public TimeStamp(Meet meet)
+        {
+            this.meet = meet;
         }
 
         public TimeStamp(Meet meet, Race race, long start, long pts, string filename)

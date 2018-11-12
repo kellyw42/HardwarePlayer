@@ -19,22 +19,22 @@ namespace PhotoFinish
         public static extern void GotoTime(IntPtr player, long pts);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void FastForward(IntPtr player);
+        public static extern void FastForward();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void Rewind(IntPtr player);
+        public static extern void Rewind();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void PlayPause(IntPtr player);
+        public static extern void PlayPause();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void NextFrame(IntPtr player);
+        public static extern void NextFrame();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void PrevFrame(IntPtr player);
+        public static extern void PrevFrame();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void VisualSearch(IntPtr player);
+        public static extern void VisualSearch(IntPtr startPlayer, IntPtr finishPlayer);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GetAudio(String filename, [MarshalAs(UnmanagedType.LPArray, SizeConst = 48000)] float[] data, int start);

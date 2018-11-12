@@ -65,7 +65,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="VideoHost.cs" />
     <Compile Include="ViewModels\Athlete.cs" />
     <Compile Include="ViewModels\Entry.cs" />
     <Compile Include="ViewModels\Heat.cs" />

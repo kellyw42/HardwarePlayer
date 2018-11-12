@@ -65,16 +65,19 @@ public:
 		decoderParams.vidLock = 0;
 		decoderParams.ulWidth = format.coded_width;
 		decoderParams.ulHeight = format.coded_height;
-		decoderParams.ulTargetHeight = format.display_area.bottom - format.display_area.top;
-		decoderParams.ulTargetWidth = format.display_area.right - format.display_area.left;
+		
 		decoderParams.display_area.left = format.display_area.left;
 		decoderParams.display_area.right = format.display_area.right;
 		decoderParams.display_area.top = format.display_area.top;
 		decoderParams.display_area.bottom = format.display_area.bottom;
+
 		decoderParams.target_rect.left = format.display_area.left;
 		decoderParams.target_rect.right = format.display_area.right;
 		decoderParams.target_rect.top = format.display_area.top;
 		decoderParams.target_rect.bottom = format.display_area.bottom;
+
+		decoderParams.ulTargetHeight = (decoderParams.target_rect.bottom - decoderParams.target_rect.top);
+		decoderParams.ulTargetWidth = (decoderParams.target_rect.right - decoderParams.target_rect.left);
 
 		Create();
 	}

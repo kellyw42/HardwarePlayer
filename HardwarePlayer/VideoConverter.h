@@ -31,20 +31,20 @@ private:
 
 	void OpenCVStuff(CUdeviceptr pDecodedFrame, unsigned int decodePitch)
 	{
-		//std::vector<int> y_pos;
-		//std::vector<int> x_pos;
+/*
+		std::vector<int> y_pos;
+		std::vector<int> x_pos;
 
-		//cv::cuda::GpuMat dimgO(cv::Size(decoder->decoderParams.ulWidth, decoder->decoderParams.ulHeight), CV_8UC1, (void*)(pDecodedFrame), decodePitch);
+		cv::cuda::GpuMat dimgO(cv::Size(decoder->decoderParams.ulWidth, decoder->decoderParams.ulHeight), CV_8UC1, (void*)(pDecodedFrame), decodePitch);
 
-		//cv::cuda::GpuMat dimg;
-		//cv::cuda::resize(dimgO, dimg, cv::Size(480, 270), 0, 0, 1);
-		//cv::cuda::GpuMat roi(dimg, cv::Rect(80, 80, 220, 190));
+		cv::cuda::GpuMat dimg;
+		cv::cuda::resize(dimgO, dimg, cv::Size(480, 270), 0, 0, 1);
+		cv::cuda::GpuMat roi(dimg, cv::Rect(80, 80, 220, 190));
 
-		//cv::cuda::GpuMat d_fgmask;
-		//mog2->apply(roi, d_fgmask);
-		//mog2->apply(dimgO, d_fgmask);
+		cv::cuda::GpuMat d_fgmask;
+		mog2->apply(roi, d_fgmask);
+		mog2->apply(dimgO, d_fgmask);
 
-		/*
 		morphDilate->apply(d_fgmask, d_fgmask);
 
 		cv::Mat fgmask;
@@ -52,7 +52,6 @@ private:
 
 		cv::Mat stats, centroids, labelImage;
 		int nLabels = cv::connectedComponentsWithStats(fgmask, labelImage, stats, centroids, 8, CV_32S);
-
 
 		cv::Mat mask(labelImage.size(), CV_8UC1, cv::Scalar(0));
 
@@ -80,7 +79,7 @@ private:
 		cv::destroyAllWindows();
 		}
 		}
-		*/
+*/
 	}
 
 public:
@@ -99,8 +98,10 @@ public:
 		morphDilate = cv::cuda::createMorphologyFilter(cv::MORPH_DILATE, CV_8UC1, kernelDilate);
 	}
 
-	long long ConvertField(CUvideodecoder _decoder, int width, int height, CUVIDPARSERDISPINFO frameInfo, int active_field, GLuint pbo, RECT *SearchRectangle)
+	long long ConvertField(CUvideodecoder _decoder, int width, int height, CUVIDPARSERDISPINFO frameInfo, int active_field, CUgraphicsResource resource, RECT *SearchRectangle)
 	{
+		//Trace2("ConvertField(decoder = %p, resource = %p)", _decoder, resource);
+
 		long long luminance = 0;
 
 		CUVIDPROCPARAMS params;
@@ -118,16 +119,22 @@ public:
 
 		OpenCVStuff(pDecodedFrame, decodePitch);
 
+		CHECK(cuGraphicsMapResources(1, &resource, 0));
+
 		size_t size = 0;
-		CUdeviceptr  pInteropFrame = 0;
-		CHECK(cuGLMapBufferObject(&pInteropFrame, &size, pbo)); // deprecated?
+		CUdeviceptr pInteropFrame = 0;
+		//CHECK(cuGLMapBufferObject(&pInteropFrame, &size, pbo)); // deprecated?
+
+		cuGraphicsResourceGetMappedPointer(&pInteropFrame, &size, resource);
 
 		cudaLaunchNV12toARGBDrv(pDecodedFrame, decodePitch, pInteropFrame, width, width, height);
 
 		if (SearchRectangle)
 			luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, width, height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
 
-		CHECK(cuGLUnmapBufferObject(pbo)); // deprecated?
+		//CHECK(cuGLUnmapBufferObject(pbo)); // deprecated?
+		CHECK(cuGraphicsUnmapResources(1, &resource, 0));
+
 		CHECK(cuvidUnmapVideoFrame(_decoder, pDecodedFrame));
 
 		return luminance;

@@ -1,6 +1,6 @@
 #pragma once
 
-#define NumFrames	40
+#define NumFrames	10
 
 void RenderFrame(VideoFrame *frame);
 
@@ -10,11 +10,10 @@ private:
 	VideoConverter * videoConverter;
 	VideoDecoder* decoder;
 	int num_fields;
-	CUvideotimestamp displayed;
 	VideoFrame* frames[NumFrames];
-	CUvideotimestamp firstPts;
 	timehandler time_handler;
 	eventhandler event_handler;
+	char finish_filename[256];
 
 	CUvideotimestamp Index(CUvideotimestamp pts)
 	{
@@ -53,7 +52,7 @@ private:
 			VideoFrame *frame = CreateFrameFor(pts);
 
 			StartTime(3);
-			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame->gl_pbo, search ? &searchRect : NULL);
+			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame->resource, search ? &searchRect : NULL);
 			EndTime(3);
 
 			if (active_field == 0)
@@ -77,6 +76,7 @@ private:
 	}
 
 public:
+	CUvideotimestamp firstPts, displayed;
 	float top, bottom;
 	RECT searchRect;
 	int width, height;
@@ -85,6 +85,13 @@ public:
 	{
 		this->event_handler = event_handler;
 		this->time_handler = time_handler;
+	}
+
+	void SaveFinishLine()
+	{
+		FILE *file = fopen(finish_filename, "w");
+		fprintf(file, "%f,%f\n", top, bottom);
+		fclose(file);
 	}
 
 	VideoFrame* Open(char* filename)
@@ -103,6 +110,18 @@ public:
 
 		decoder->Init();
 		decoder->Start();
+
+		sprintf(finish_filename, "%s.finishline", filename);
+
+		FILE *file = fopen(finish_filename, "r");
+		if (file != 0)
+		{
+			fscanf(file, "%f,%f", &top, &bottom);
+			fclose(file);
+		}
+		else
+			top = bottom = -10;
+
 
 		videoConverter = new VideoConverter();
 
@@ -128,6 +147,11 @@ public:
 		CUvideotimestamp fetchedPts = decoder->Goto(targetPts);
 		assert(fetchedPts <= targetPts);
 		return NextUntil(targetPts, false);
+	}
+
+	VideoFrame * SkipFrames(int count)
+	{
+		return NextUntil(displayed + TIME_PER_FIELD * count, false);
 	}
 
 	VideoFrame * NextFrame(bool search)
