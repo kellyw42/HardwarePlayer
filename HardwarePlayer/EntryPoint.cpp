@@ -4,6 +4,7 @@
 #include <io.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <vector>
 #include <Windows.h>
 #include <Windowsx.h>
 #include <chrono>
@@ -17,19 +18,22 @@
 #include <cuda_gl_interop.h>
 #include "nvcuvid.h"
 
-//#include <opencv/cv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/core/cuda.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudabgsegm.hpp>
-#include <opencv2/video.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/cudaobjdetect.hpp>
-#include <opencv2/cudawarping.hpp>
-#include <opencv2/cudafilters.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/utility.hpp"
+#include "opencv2/cudabgsegm.hpp"
+#include "opencv2/video.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/features2d.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/ocl.hpp"
+#include "opencv2/cudaimgproc.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/cudaobjdetect.hpp"
+#include "opencv2/cudawarping.hpp"
+#include "opencv2/cudafilters.hpp"
+#include "opencv2/cudaarithm.hpp"
+#include "opencv2/tracking.hpp"
 
 #include "Helper.h"
 
@@ -38,6 +42,7 @@
 #include "VideoSource.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
+#include "TrackingSystem.h"
 #include "VideoConverter.h"
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
@@ -57,6 +62,16 @@ extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhan
 extern "C" __declspec(dllexport) void GotoTime(VideoBuffer *newBuffer, CUvideotimestamp pts)
 {
 	PostThreadMessage(eventLoopThread, Messages::GOTO, (WPARAM)newBuffer, (LPARAM)pts);
+}
+
+extern "C" __declspec(dllexport) void Up()
+{
+	PostThreadMessage(eventLoopThread, Messages::UP, 0, 0);
+}
+
+extern "C" __declspec(dllexport) void Down()
+{
+	PostThreadMessage(eventLoopThread, Messages::DOWN, 0, 0);
 }
 
 extern "C" __declspec(dllexport) void NextFrame()

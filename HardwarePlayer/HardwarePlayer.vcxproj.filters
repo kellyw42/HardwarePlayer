@@ -58,6 +58,9 @@
     <ClInclude Include="VideoPlayer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="TrackingSystem.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

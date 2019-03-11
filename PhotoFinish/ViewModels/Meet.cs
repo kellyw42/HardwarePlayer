@@ -77,6 +77,8 @@ namespace PhotoFinish
         public ICommand FastForwardCommand { get; set; }
         public ICommand RewindCommand { get; set; }
         public ICommand PlayPauseCommand { get; set; }
+        public ICommand UpCommand { get; set; }
+        public ICommand DownCommand { get; set; }
         public ICommand PrevFrameCommand { get; set; }
         public ICommand NextFrameCommand { get; set; }
         public ICommand VisualSearchCommand { get; set; }
@@ -111,6 +113,8 @@ namespace PhotoFinish
             FastForwardCommand = new DelegateCommand(FastForward);
             RewindCommand = new DelegateCommand(Rewind);
             PlayPauseCommand = new DelegateCommand(PlayPause);
+            UpCommand = new DelegateCommand(Up);
+            DownCommand = new DelegateCommand(Down);
             NextFrameCommand = new DelegateCommand(NextFrame);
             PrevFrameCommand = new DelegateCommand(PrevFrame);
             VisualSearchCommand = new DelegateCommand(VisualSearch);
@@ -224,9 +228,16 @@ namespace PhotoFinish
                     case 0x25: // Left
                         PrevFrameCommand.Execute(null);
                         return;
+                    case 0x26: // Up
+                        UpCommand.Execute(null);
+                        return;
                     case 0x27: // Right
                         NextFrameCommand.Execute(null);
                         return;
+                    case 0x28: // Down
+                        DownCommand.Execute(null);
+                        return;
+
                     case 'S':
                         this.VisualSearchCommand.Execute(null);
                         return;
@@ -392,6 +403,15 @@ namespace PhotoFinish
         private void PlayPause()
         {
             NativeVideo.PlayPause();
+        }
+        private void Up()
+        {
+            NativeVideo.Up();
+        }
+
+        private void Down()
+        {
+            NativeVideo.Down();
         }
 
         private void NextFrame()

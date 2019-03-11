@@ -18,6 +18,7 @@
     <ClInclude Include="cuviddec.h" />
     <ClInclude Include="Helper.h" />
     <ClInclude Include="Lenovo.h" />
+    <ClInclude Include="TrackingSystem.h" />
     <ClInclude Include="VideoConverter.h" />
     <ClInclude Include="VideoPlayer.h" />
     <ClInclude Include="VideoWindow.h" />

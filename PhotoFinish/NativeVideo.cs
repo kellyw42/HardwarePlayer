@@ -28,6 +28,12 @@ namespace PhotoFinish
         public static extern void PlayPause();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Up();
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Down();
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void NextFrame();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]

@@ -92,6 +92,18 @@ void FastRewind()
 	mode = REWINDING;
 }
 
+void UpCommand()
+{
+	videoBuffer->Up();
+	RenderFrame(videoBuffer->GotoTime(39609000));
+}
+
+void DownCommand()
+{
+	videoBuffer->Down();
+	RenderFrame(videoBuffer->GotoTime(39609000));
+}
+
 void StepNextFrame()
 {
 	if (mode == PAUSED)
@@ -167,6 +179,16 @@ void EventLoop()
 						Play();
 					else
 						Pause();
+					break;
+				}
+				case  Messages::UP:
+				{
+					UpCommand();
+					break;
+				}
+				case  Messages::DOWN:
+				{
+					DownCommand();
 					break;
 				}
 				case  Messages::STEPNEXTFRAME:

@@ -14,7 +14,7 @@ extern "C"
 	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
 
-enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD };
+enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, UP, DOWN };
 
 void Trace(const char* format, ...)
 {

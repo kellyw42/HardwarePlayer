@@ -71,7 +71,7 @@ void RenderFinishLine(float top, float bottom)
 	glEnd();
 }
 
-void RenderSearchBox(RECT box)
+void RenderBox(RECT box)
 {
 	glLineWidth(1);
 	glColor3f(1.0f, 0.0f, 0.0f);
@@ -84,13 +84,16 @@ void RenderSearchBox(RECT box)
 	glEnd();
 }
 
-void RenderOverlay()
+void RenderOverlay(VideoFrame *frame)
 {
 	if (videoBuffer->top > 0)
 		RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
 
 	if (videoBuffer->searchRect.right != videoBuffer->searchRect.left)
-		RenderSearchBox(videoBuffer->searchRect);
+		RenderBox(videoBuffer->searchRect);
+
+	for (int i = 0; i < frame->athletePositions.size(); i++)
+		RenderBox(frame->athletePositions[i]);
 }
 
 int UpdateFrameRate()
@@ -177,7 +180,7 @@ void RenderFrame(VideoFrame *frame)
 
 	EndTime(6);
 
-	RenderOverlay();
+	RenderOverlay(frame);
 
 	glFlush();
 

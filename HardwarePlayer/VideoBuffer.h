@@ -7,6 +7,7 @@ void RenderFrame(VideoFrame *frame);
 class VideoBuffer
 {
 private:
+	TrackingSystem* trackingSystem;
 	VideoConverter * videoConverter;
 	VideoDecoder* decoder;
 	int num_fields;
@@ -52,7 +53,7 @@ private:
 			VideoFrame *frame = CreateFrameFor(pts);
 
 			StartTime(3);
-			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame->resource, search ? &searchRect : NULL);
+			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame, search ? &searchRect : NULL);
 			EndTime(3);
 
 			if (active_field == 0)
@@ -103,6 +104,11 @@ public:
 		width = format.display_area.right - format.display_area.left;
 		height = format.display_area.bottom - format.display_area.top;
 
+		if (width == 1920)
+			trackingSystem = new TrackingSystem(width, height);
+		else
+			trackingSystem = NULL;
+
 		num_fields = format.progressive_sequence ? 1 : 2;
 
 		for (int i = 0; i < NumFrames; i++)
@@ -123,7 +129,7 @@ public:
 			top = bottom = -10;
 
 
-		videoConverter = new VideoConverter();
+		videoConverter = new VideoConverter(trackingSystem);
 
 		return FirstFrame();
 	}
@@ -137,6 +143,9 @@ public:
 
 	VideoFrame * GotoTime(CUvideotimestamp targetPts)
 	{
+		if (trackingSystem) 
+			trackingSystem->Reset();
+
 		if (targetPts < firstPts)
 			targetPts = firstPts;
 
@@ -152,6 +161,16 @@ public:
 	VideoFrame * SkipFrames(int count)
 	{
 		return NextUntil(displayed + TIME_PER_FIELD * count, false);
+	}
+
+	void Up()
+	{
+		trackingSystem->Up();
+	}
+
+	void Down()
+	{
+		trackingSystem->Down();
 	}
 
 	VideoFrame * NextFrame(bool search)

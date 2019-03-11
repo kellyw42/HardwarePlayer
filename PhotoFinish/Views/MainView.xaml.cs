@@ -34,6 +34,14 @@ namespace PhotoFinish.Views
                     meet.FinishLaneCommand.Execute(e.Key - Key.D0);
                     e.Handled = true;
                     return;
+                case Key.Up:
+                    meet.UpCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                case Key.Down:
+                    meet.DownCommand.Execute(null);
+                    e.Handled = true;
+                    return;
                 case Key.Left:
                     meet.PrevFrameCommand.Execute(null);
                     e.Handled = true;
