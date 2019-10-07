@@ -8,9 +8,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotoFinish", "PhotoFinish\PhotoFinish.csproj", "{CC59EE26-2E14-416D-86F4-07B210E5E775}"
 EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -21,18 +18,22 @@ Global
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Debug|Any CPU.Build.0 = Debug|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Debug|x64.ActiveCfg = Debug|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Debug|x64.Build.0 = Debug|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Debug|x86.ActiveCfg = Debug|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Release|Any CPU.ActiveCfg = Release|x64
+		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Release|Any CPU.Build.0 = Release|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Release|x64.ActiveCfg = Release|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Release|x64.Build.0 = Release|x64
 		{B812EBC5-A36C-4FB3-B590-57D2355B3688}.Release|x86.ActiveCfg = Release|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Debug|Any CPU.Build.0 = Debug|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Debug|x64.ActiveCfg = Debug|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Debug|x64.Build.0 = Debug|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Debug|x86.ActiveCfg = Debug|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Release|Any CPU.ActiveCfg = Release|x64
+		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Release|Any CPU.Build.0 = Release|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Release|x64.ActiveCfg = Release|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Release|x64.Build.0 = Release|x64
 		{CC59EE26-2E14-416D-86F4-07B210E5E775}.Release|x86.ActiveCfg = Release|x64
@@ -42,5 +43,8 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6F85A3DE-E017-408F-8A44-22698F13135D}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

@@ -3,64 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+        WindowStartupLocation="CenterScreen"
         xmlns:local="clr-namespace:PhotoFinish.Views"
         mc:Ignorable="d"
-        FontSize="19"
-        DataContext="{Binding RelativeSource={RelativeSource Self}}"
-        Title="Upload Videos from SD Card" Height="600" Width="1100">
-    <Grid >
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        Title="UploadVideos" Height="1000" Width="1600">
+    <Grid x:Name="MyGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-
-        <ListView Grid.Column="0" Grid.Row="0" ItemsSource="{Binding Files}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="Status" Width="200" DisplayMemberBinding="{Binding Status}"/>
-                        <GridViewColumn Header="Upload?">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding Upload, Mode=TwoWay}"/>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-                        <GridViewColumn Header="Part" DisplayMemberBinding="{Binding Part}"/>
-                        <GridViewColumn Header="Filename" DisplayMemberBinding="{Binding Filename}"/>
-                        <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}"/>
-                    <GridViewColumn Header="Date" DisplayMemberBinding="{Binding Date}"/>
-                </GridView>
-            </ListView.View>
-        </ListView>
-
-        <ListView Grid.Column="1" Grid.Row="0" ItemsSource="{Binding UploadedFiles}">
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Label Content="{Binding}"/>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
-
-        <StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2">
-            <Button Content="Refresh" Padding="10,3,10,3" Margin="3,3,3,3" Click="Refresh"/>
-            <Button Content="Upload Start"  Padding="10,3,10,3" Margin="3,3,3,3" Command="{Binding UploadCommand}" CommandParameter="Start-"/>
-            <Button Content="Upload Finish"  Padding="10,3,10,3" Margin="3,3,3,3" Command="{Binding UploadCommand}" CommandParameter="Finish-"/>
-            <Button Content="Cancel"  Padding="10,3,10,3" Margin="3,3,3,3" Command="{Binding CancelCommand}"/>
-            <Label  Content="{Binding Status}"  Width="230" BorderThickness="1" BorderBrush="Gray"  Padding="3,3,3,3" Margin="3,3,3,3"/>
-            <Label  Content="{Binding Rate}" Width="397"  BorderThickness="1" BorderBrush="Gray"  Padding="3,3,3,3" Margin="3,3,3,3"/>
-        </StackPanel>
-
-        <Grid Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2">
-            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}"/>
-            <TextBlock Text="{Binding Remaining}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Grid>
-
-
     </Grid>
 </Window>

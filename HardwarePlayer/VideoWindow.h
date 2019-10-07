@@ -91,9 +91,6 @@ void RenderOverlay(VideoFrame *frame)
 
 	if (videoBuffer->searchRect.right != videoBuffer->searchRect.left)
 		RenderBox(videoBuffer->searchRect);
-
-	for (int i = 0; i < frame->athletePositions.size(); i++)
-		RenderBox(frame->athletePositions[i]);
 }
 
 int UpdateFrameRate()

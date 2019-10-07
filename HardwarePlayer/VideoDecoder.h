@@ -145,7 +145,7 @@ public:
 
 int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 {
-	Trace("HandleVideoData();");
+	//printf("HandleVideoData(%lld)\n", pPacket->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	CHECK(cuvidParseVideoData(container->parser, pPacket));
 	return true;
@@ -153,7 +153,7 @@ int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 
 int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 {
-	Trace("HandlePictureDecode(%d);", pPicParams->CurrPicIdx);
+	//printf("HandlePictureDecode(%d)\n", pPicParams->CurrPicIdx);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	container->frameQueue->waitUntilFrameAvailable(pPicParams->CurrPicIdx);
 	CHECK(cuvidDecodePicture(container->decoder, pPicParams));
@@ -162,7 +162,7 @@ int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 
 int CUDAAPI HandlePictureDisplay(void *userData, CUVIDPARSERDISPINFO *p)
 {
-	Trace("HandlePictureDisplay(%ld);", p->timestamp);
+	//printf("HandlePictureDisplay(%lld)\n", p->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	container->frameQueue->enqueue(p);
 	return true;

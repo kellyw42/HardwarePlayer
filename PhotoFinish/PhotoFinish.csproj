@@ -75,9 +75,6 @@
     <Compile Include="Views\AudioPanel.xaml.cs">
       <DependentUpon>AudioPanel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\BangView.xaml.cs">
-      <DependentUpon>BangView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\FileSelector.xaml.cs">
       <DependentUpon>FileSelector.xaml</DependentUpon>
     </Compile>
@@ -88,14 +85,13 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Views\Upload.xaml.cs">
+      <DependentUpon>Upload.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\UploadVideos.xaml.cs">
       <DependentUpon>UploadVideos.xaml</DependentUpon>
     </Compile>
     <Page Include="Views\AudioPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\BangView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -104,6 +100,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\MainView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Upload.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

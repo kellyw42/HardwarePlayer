@@ -18,10 +18,11 @@ extern "C" __global__ void NV12ToGrayScale(unsigned char *srcImage, size_t nSour
 	dstImage[y * nDestPitch + x] = (0xFF << 24) | (lum << 16) | (lum << 8) | lum;
 }
 
-__constant__ float constHueColorSpaceMat[9] = { 1.1644f, 0.0f, 1.596f, 1.1644f, -0.3918f, -0.813f, 1.1644f, 2.0172f, 0.0f };
 
 __device__ static void YUV2RGB(const unsigned int* yuvi, float* red, float* green, float* blue)
 {
+	float constHueColorSpaceMat[9] = { 1.1644f, 0.0f, 1.596f, 1.1644f, -0.3918f, -0.813f, 1.1644f, 2.0172f, 0.0f };
+
 	float luma, chromaCb, chromaCr;
 
 	// Prepare for hue adjustment
@@ -135,8 +136,20 @@ extern "C" __global__ void NV12ToARGB(const unsigned char* srcImage, size_t nSou
 
 	const size_t dstImagePitch = nDestPitch >> 2;
 
-	dstImage[y * dstImagePitch + x] = RGBA_pack_10bit(red[0], green[0], blue[0], ((unsigned int)0xff << 24));
-	dstImage[y * dstImagePitch + x + 1] = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
+	int ii0 = y * nSourcePitch + x;
+	int ii1 = y * nSourcePitch + x + 1;
+	unsigned char s0 = srcImage[y * nSourcePitch + x];
+	unsigned char s1 = srcImage[y * nSourcePitch + x + 1];
+	int i0 = y * dstImagePitch + x;
+	int i1 = y * dstImagePitch + x + 1;
+	unsigned int r0 = RGBA_pack_10bit(red[0], green[0], blue[0], ((unsigned int)0xff << 24));
+	unsigned int r1 = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
+
+	if (s0 + s1 > 1000)
+		return;
+
+	dstImage[y * dstImagePitch + x] = r0;
+	dstImage[y * dstImagePitch + x + 1] = r1;
 }
 
 extern "C" __global__ void Luminance(unsigned char *srcImage, size_t nSourcePitch, int left, int right, int top, int bottom, long long *result)

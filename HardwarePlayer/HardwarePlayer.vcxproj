@@ -15,12 +15,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Audio.h" />
+    <ClInclude Include="AudioDecoder.h" />
     <ClInclude Include="cuviddec.h" />
+    <ClInclude Include="H264Parser.h" />
     <ClInclude Include="Helper.h" />
     <ClInclude Include="Lenovo.h" />
-    <ClInclude Include="TrackingSystem.h" />
+    <ClInclude Include="SDCardReader.h" />
+    <ClInclude Include="Sync.h" />
     <ClInclude Include="VideoConverter.h" />
+    <ClInclude Include="VideoFileWriter.h" />
     <ClInclude Include="VideoPlayer.h" />
+    <ClInclude Include="VideoSource0.h" />
     <ClInclude Include="VideoWindow.h" />
     <ClInclude Include="VideoBuffer.h" />
     <ClInclude Include="FrameQueue.h" />
@@ -78,12 +83,12 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\opencv\Install\opencv\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\kellyw\Dropbox\000000 AranaLA\AAAAA\HardwarePlayer\alglib;C:\opencv\Install\opencv\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include;C:\ffmpeg4.2.1-win64-dev\include\libavformat;C:\ffmpeg4.2.1-win64-dev\include;C:\ffmpeg4.2.1-win64-dev\include\libavcodec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\opencv\Install\opencv\x64\vc15\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64;C:\Users\kellyw\Dropbox\AAAAA\HardwarePlayer\HardwarePlayer\libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\ffmpeg4.2.1-win64-dev\lib;C:\opencv\Install\opencv\x64\vc15\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64;C:\Users\kellyw\Dropbox\000000 AranaLA\AAAAA\HardwarePlayer\HardwarePlayer\libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -94,7 +99,7 @@
       <ConformanceMode>false</ConformanceMode>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>opencv_world400d.lib;PortableDeviceGuids.lib;nvcuvid.lib;cuda.lib;glew32s.lib;opengl32.lib;legacy_stdio_definitions.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;PortableDeviceGuids.lib;nvcuvid.lib;cuda.lib;glew32s.lib;opengl32.lib;legacy_stdio_definitions.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -112,7 +117,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>opencv_world400.lib;PortableDeviceGuids.lib;nvcuvid.lib;cuda.lib;glew32s.lib;opengl32.lib;legacy_stdio_definitions.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;PortableDeviceGuids.lib;nvcuvid.lib;cuda.lib;glew32s.lib;opengl32.lib;legacy_stdio_definitions.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

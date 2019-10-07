@@ -10,7 +10,6 @@ public:
 	GLuint gl_pbo;
 	long long luminance = 0;
 	CUgraphicsResource resource = 0;
-	std::vector<RECT> athletePositions;
 
 	VideoFrame(int width, int height)
 	{

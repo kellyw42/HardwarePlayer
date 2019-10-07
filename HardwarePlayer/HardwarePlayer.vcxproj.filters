@@ -58,7 +58,22 @@
     <ClInclude Include="VideoPlayer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="TrackingSystem.h">
+    <ClInclude Include="VideoSource0.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H264Parser.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SDCardReader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioDecoder.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Sync.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoFileWriter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

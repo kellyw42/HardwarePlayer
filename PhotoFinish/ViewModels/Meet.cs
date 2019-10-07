@@ -96,8 +96,14 @@ namespace PhotoFinish
             //audio1 = new eventhandler(StartAudioHandler);
             //audio2 = new eventhandler(FinishAudioHandler);
 
-            NativeVideo.Init();
-
+            try
+            {
+                NativeVideo.Init();
+            }
+            catch (System.DllNotFoundException e)
+            {
+                MessageBox.Show(e.Message, "dll not found exception");
+            }
             StartTime = "00:00:00.00";
 
             ViewStartCommand = new DelegateCommand(ViewStart);
@@ -174,16 +180,20 @@ namespace PhotoFinish
         private void UploadVideo()
         {
             var date = DateTime.Parse(CurrentMeet);
+            var window = new Views.UploadVideos(date);
+            window.Show();
 
+            /*
             foreach (var drive in System.IO.DriveInfo.GetDrives())
             {
                 string StreamFolder = drive.RootDirectory + @"PRIVATE\AVCHD\BDMV\STREAM\";
                 if (drive.IsReady && drive.DriveType == DriveType.Removable && System.IO.Directory.Exists(StreamFolder))
                 {
-                    var window = new Views.UploadVideos(drive, StreamFolder, date);
+
                     window.Show();
                 }
             }
+            */
         }
 
         private void start_event_handler(long event_type)

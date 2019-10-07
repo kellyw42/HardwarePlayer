@@ -10,13 +10,15 @@
 
 extern "C"
 {
+	typedef void(__stdcall *ReportSync)(int, long, double, double);
+	typedef void(__stdcall *progresshandler)(int, long, long, char*);
 	typedef void(__stdcall *eventhandler)(long long);
 	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
 
 enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, UP, DOWN };
 
-void Trace(const char* format, ...)
+void inline Trace(const char* format, ...)
 {
 	/*
 	char msg[1024];
@@ -29,8 +31,9 @@ void Trace(const char* format, ...)
 	*/
 }
 
-void Trace2(const char* format, ...)
+void inline Trace2(const char* format, ...)
 {
+	/*
 	char msg[1024];
 	va_list argptr;
 	va_start(argptr, format);
@@ -38,6 +41,7 @@ void Trace2(const char* format, ...)
 	va_end(argptr);
 	OutputDebugStringA(msg);
 	OutputDebugStringA("\n");
+	*/
 }
 
 void CHECK(CUresult result)

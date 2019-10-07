@@ -3,7 +3,6 @@
 class VideoConverter
 {
 private:
-	TrackingSystem* trackingSystem;
 	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance;
 	CUdeviceptr totalLuminance;
 
@@ -37,12 +36,10 @@ private:
 	}
 
 public:
-	VideoConverter(TrackingSystem *trackingSystem)
+	VideoConverter()
 	{
-		this->trackingSystem = trackingSystem;
-
 		CUmodule colourConversionModule;
-		CHECK(cuModuleLoad(&colourConversionModule, "ColourConversion.cubin"));
+		CHECK(cuModuleLoad(&colourConversionModule, "C:\\Users\\kellyw\\Dropbox\\000000 AranaLA\\AAAAA\\HardwarePlayer\\HardwarePlayer\\ColourConversion.cubin"));
 
 		CHECK(cuModuleGetFunction(&NV12ToGrayScale, colourConversionModule, "NV12ToGrayScale"));
 		CHECK(cuModuleGetFunction(&NV12ToARGB, colourConversionModule, "NV12ToARGB"));
@@ -53,7 +50,7 @@ public:
 
 	long long ConvertField(CUvideodecoder _decoder, int width, int height, CUVIDPARSERDISPINFO frameInfo, int active_field, VideoFrame* frame, RECT *SearchRectangle)
 	{
-		//Trace2("ConvertField(decoder = %p, resource = %p)", _decoder, resource);
+		Trace2("ConvertField(decoder = %p)", _decoder);
 
 		long long luminance = 0;
 
@@ -70,23 +67,12 @@ public:
 
 		CHECK(cuvidMapVideoFrame(_decoder, frameInfo.picture_index, &pDecodedFrame, &decodePitch, &params));
 
-
-
 		CHECK(cuGraphicsMapResources(1, &frame->resource, 0));
-
 		size_t size = 0;
 		CUdeviceptr pInteropFrame = 0;
-		//CHECK(cuGLMapBufferObject(&pInteropFrame, &size, pbo)); // deprecated?
+		CHECK(cuGraphicsResourceGetMappedPointer(&pInteropFrame, &size, frame->resource));
 
-		cuGraphicsResourceGetMappedPointer(&pInteropFrame, &size, frame->resource);
-
-		//cudaLaunchNV12toGrayScaleDrv(pDecodedFrame, decodePitch, pInteropFrame, width, width, height);
 		cudaLaunchNV12toARGBDrv(pDecodedFrame, decodePitch, pInteropFrame, width*4, width, height);
-
-		if (trackingSystem != NULL)
-			frame->athletePositions = trackingSystem->AnalyseFrame(pInteropFrame, width * 4);
-		else
-			frame->athletePositions.clear();
 
 		if (SearchRectangle)
 			luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, width, height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);

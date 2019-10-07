@@ -1,5 +1,11 @@
 //#define CUDA_ENABLE_DEPRECATED
 
+extern "C"
+{
+#include "avcodec.h"
+#include "avformat.h"
+}
+
 #include <stdio.h>
 #include <io.h>
 #include <inttypes.h>
@@ -17,32 +23,20 @@
 #include <cudaGL.h>
 #include <cuda_gl_interop.h>
 #include "nvcuvid.h"
-
-#include "opencv2/core.hpp"
-#include "opencv2/core/utility.hpp"
-#include "opencv2/cudabgsegm.hpp"
-#include "opencv2/video.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/features2d.hpp"
-#include "opencv2/core/cuda.hpp"
-#include "opencv2/core/core.hpp"
-#include "opencv2/core/ocl.hpp"
-#include "opencv2/cudaimgproc.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/cudaobjdetect.hpp"
-#include "opencv2/cudawarping.hpp"
-#include "opencv2/cudafilters.hpp"
-#include "opencv2/cudaarithm.hpp"
-#include "opencv2/tracking.hpp"
+#include "interpolation.h"
 
 #include "Helper.h"
-
 #include "FrameQueue.h"
 #include "VideoIndex.h"
+#include "SDCardReader.h"
+#include "H264Parser.h"
+#include "VideoFileWriter.h"
+#include "Sync.h"
+#include "AudioDecoder.h"
+#include "VideoSource0.h"
 #include "VideoSource.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
-#include "TrackingSystem.h"
 #include "VideoConverter.h"
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
@@ -51,6 +45,16 @@
 #include "Lenovo.h"
 
 DWORD eventLoopThread;
+
+extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename, char* directory, int which, char** filenames, int size, progresshandler progress_handler)
+{
+	return new VideoSource0(destFilename, directory, which, filenames, size, progress_handler);
+}
+
+extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
+{
+	StartSync(sync_handler);
+}
 
 extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhandler event_handler, timehandler time_handler)
 {
