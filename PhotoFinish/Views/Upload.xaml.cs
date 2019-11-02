@@ -53,10 +53,13 @@ namespace PhotoFinish.Views
 
             InitializeComponent();
 
-            this.Title.Content = name + "\t(" + driveInfo.Name + ")";
+            if (driveInfo != null)
+            {
+                this.Title.Content = name + "\t(" + driveInfo.Name + ")";
 
-            UpdateFileList();
-            this.Loaded += UploadVideos_Loaded;
+                UpdateFileList();
+                this.Loaded += UploadVideos_Loaded;
+            }
         }
 
         private DriveInfo driveInfo;
@@ -151,7 +154,7 @@ namespace PhotoFinish.Views
 
         private void UploadVideos_Loaded(object sender, RoutedEventArgs e)
         {
-            if (!weird)
+            if (false && !weird)
                 UploadFilesNow();
         }
 

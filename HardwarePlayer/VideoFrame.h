@@ -10,6 +10,7 @@ public:
 	GLuint gl_pbo;
 	long long luminance = 0;
 	CUgraphicsResource resource = 0;
+	int field;
 
 	VideoFrame(int width, int height)
 	{

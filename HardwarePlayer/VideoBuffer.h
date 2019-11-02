@@ -10,7 +10,6 @@ class VideoBuffer
 private:
 	VideoConverter * videoConverter;
 	VideoDecoder* decoder;
-	int num_fields;
 	VideoFrame* frames[NumFrames];
 	timehandler time_handler;
 	eventhandler event_handler;
@@ -42,26 +41,15 @@ private:
 
 	VideoFrame* ConvertNextFrame(bool search)
 	{
-		VideoFrame *first = NULL;
-		StartTime(8);
 		CUVIDPARSERDISPINFO frameInfo = decoder->FetchFrame();
-		EndTime(8);
 
-		for (int active_field = 0; active_field < num_fields; active_field++)
-		{
-			CUvideotimestamp pts = frameInfo.timestamp + active_field * TIME_PER_FIELD;
-			VideoFrame *frame = CreateFrameFor(pts);
+		VideoFrame *topField = CreateFrameFor(frameInfo.timestamp);
+		VideoFrame *bottomField = CreateFrameFor(frameInfo.timestamp + TIME_PER_FIELD);
 
-			StartTime(3);
-			frame->luminance = videoConverter->ConvertField(decoder->decoder, width, height, frameInfo, active_field, frame, search ? &searchRect : NULL);
-			EndTime(3);
-
-			if (active_field == 0)
-				first = frame;
-		}
+		videoConverter->ConvertFields(decoder->decoder, width, height, frameInfo, topField, bottomField, search ? &searchRect : NULL);
 
 		decoder->releaseFrame(&frameInfo);
-		return first;
+		return topField;
 	}
 
 	VideoFrame* NextUntil(CUvideotimestamp targetPts, bool search)
@@ -95,19 +83,17 @@ public:
 		fclose(file);
 	}
 
-	VideoFrame* Open(char* filename)
+	void Open(char* filename, progresshandler progress_handler)
 	{
 		decoder = new VideoDecoder();
 
-		CUVIDEOFORMAT format = decoder->OpenVideo(filename);
+		CUVIDEOFORMAT format = decoder->OpenVideo(filename, progress_handler);
 
 		width = format.display_area.right - format.display_area.left;
-		height = format.display_area.bottom - format.display_area.top;
-
-		num_fields = format.progressive_sequence ? 1 : 2;
+		height = (format.display_area.bottom - format.display_area.top);
 
 		for (int i = 0; i < NumFrames; i++)
-			frames[i] = new VideoFrame(format.display_area.right - format.display_area.left, format.display_area.bottom - format.display_area.top);
+			frames[i] = new VideoFrame(width, height/2);
 
 		decoder->Init();
 		decoder->Start();
@@ -123,10 +109,9 @@ public:
 		else
 			top = bottom = -10;
 
-
 		videoConverter = new VideoConverter();
 
-		return FirstFrame();
+		//return FirstFrame();
 	}
 
 	VideoFrame* FirstFrame()

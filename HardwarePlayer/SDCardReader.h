@@ -5,7 +5,6 @@
 class SDCardReader
 {
 private:
-	char** filenames;
 	int num_files;
 	progresshandler progress_handler;
 	bool waiting = false;
@@ -14,7 +13,7 @@ private:
 	HANDLE more_packets_ready;
 
 public:
-
+	char** filenames;
 	SDCardReader(char** filenames, int num_files, progresshandler progress_handler)
 	{
 		this->end_of_file = false;
@@ -65,11 +64,11 @@ private:
 	static DWORD WINAPI sourceThreadProc(LPVOID lpThreadParameter)
 	{
 		SDCardReader *buffer = (SDCardReader*)lpThreadParameter;
-		buffer->SoureThreadMethod();
+		buffer->SourceThreadMethod();
 		return 0;
 	}
 
-	void SoureThreadMethod()
+	void SourceThreadMethod()
 	{
 		for (int i = 0; i < num_files; i++)
 		{

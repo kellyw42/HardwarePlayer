@@ -68,7 +68,12 @@ public:
 		packet.flags = CUVID_PKT_TIMESTAMP;
 		packet.timestamp = PTS;
 		if (started)
+		{
+			//Trace2("VideoSource(filename=%s, size=%ld, PTS=%lld, data[0] = %d)", 
+			//	filename, packet.payload_size, packet.timestamp, packet.payload[0]);
+
 			params.pfnVideoDataHandler(params.pUserData, &packet);
+		}
 	}
 
 	void Parse()
@@ -159,7 +164,7 @@ public:
 		while (!waiting)
 			Sleep(1);
 
-		//SendEndOfStream();
+		SendEndOfStream();
 	}
 
 	void Goto(CUvideotimestamp pts)

@@ -17,7 +17,7 @@ namespace PhotoFinish
         public static extern void Init();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr OpenVideo(String filename, eventhandler event_handler, timehandler time_handler);
+        public static extern IntPtr OpenVideo(String filename, eventhandler event_handler, timehandler time_handler, progresshandler progress_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SyncAudio(ReportSync progress_handler);

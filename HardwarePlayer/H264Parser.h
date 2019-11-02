@@ -11,15 +11,16 @@ private:
 	AVPacket audioPackets[1000000];
 	bool videoWaiting = false, audioWaiting = false;
 	HANDLE more_videopackets_ready, more_audiopackets_ready;
-
+	char* destVideoFilename;
 	SDCardReader* reader;
 	progresshandler progress_handler;
 
 public:
-	H264Parser(SDCardReader* reader, progresshandler progress_handler)
+	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename)
 	{
 		this->reader = reader;
 		this->progress_handler = progress_handler;
+		this->destVideoFilename = destVideoFilename;
 	}
 
 private:
@@ -70,7 +71,7 @@ public:
 		}
 		if (audioLastPacket > 0 && audioClientPos >= audioLastPacket)
 		{
-			progress_handler(2, audioClientPos, audioLastPacket, "audio packetes");
+			progress_handler(2, audioClientPos, audioLastPacket, "audio packets");
 			return NULL;
 		}
 
@@ -92,6 +93,8 @@ private:
 		packet->payload_size = size;
 		packet->flags = CUVID_PKT_TIMESTAMP;
 		packet->timestamp = PTS;
+		//Trace2("GenerateVideoPacket(file=%s, size=%ld PTS=%lld, data[0]=%d, data[1]=%d, data[2]=%d, data[3]=%d, data[4]=%d", 
+		//	this->reader->filenames[0], size, PTS, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 
 		if (!payload || size == 0)
 			packet->flags |= CUVID_PKT_ENDOFSTREAM;
@@ -120,10 +123,29 @@ private:
 			SetEvent(more_audiopackets_ready);
 	}
 
+	void WriteVideoFile()
+	{
+		FILE *file;
+		fopen_s(&file, destVideoFilename, "wb");
+
+		fwrite(&videoLastPacket, sizeof(videoLastPacket), 1, file);
+		fwrite(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
+
+		for (int i = 0; i < videoLastPacket; i++)
+		{
+			fwrite(videoPackets[i].payload, 1, videoPackets[i].payload_size, file);
+			if (i % 1000 == 0)
+				progress_handler(3, i, videoPacketNr, "video packets written");
+		}
+
+		fclose(file);
+		progress_handler(3, videoLastPacket, videoLastPacket, "video packets written");
+	}
+
 	void ParseThreadMethod()
 	{
 		unsigned long video_packet_length = 0, audio_packet_length = 0;
-		CUvideotimestamp PTS;
+		CUvideotimestamp video_PTS, audio_PTS;
 
 		while (true)
 		{
@@ -155,6 +177,8 @@ private:
 				pos += adaptationFieldLength;
 			}
 
+			//Trace2("start=%d, pid=%d, payload=%d", start, pid, payload);
+
 			if (payload)
 			{
 				if (pid == 0x1011)
@@ -163,7 +187,7 @@ private:
 					{
 						if (video_packet_length > 0)
 						{
-							GenerateVideoPacket(PES_video, video_packet_length, PTS);
+							GenerateVideoPacket(PES_video, video_packet_length, video_PTS);
 							video_packet_length = 0;
 						}
 
@@ -174,7 +198,8 @@ private:
 						int64_t item13 = (buffer[13] & 0x0F) >> 1;
 						int64_t item14 = (buffer[14] << 8 | buffer[15]) >> 1;
 						int64_t item16 = (buffer[16] << 8 | buffer[17]) >> 1;
-						PTS = (item13 << 30) | (item14 << 15) | item16;
+						video_PTS = (item13 << 30) | (item14 << 15) | item16;
+						//Trace2("video_PTS=%lld", video_PTS);
 					}
 
 					memcpy(PES_video + video_packet_length, buffer + pos, 188 - pos);
@@ -187,7 +212,7 @@ private:
 					{
 						if (audio_packet_length > 0)
 						{
-							GenerateAudioPacket(PES_audio, audio_packet_length, PTS);
+							GenerateAudioPacket(PES_audio, audio_packet_length, audio_PTS);
 							audio_packet_length = 0;
 						}
 
@@ -198,7 +223,7 @@ private:
 						int64_t item13 = (buffer[13] & 0x0F) >> 1;
 						int64_t item14 = (buffer[14] << 8 | buffer[15]) >> 1;
 						int64_t item16 = (buffer[16] << 8 | buffer[17]) >> 1;
-						PTS = (item13 << 30) | (item14 << 15) | item16;
+						audio_PTS = (item13 << 30) | (item14 << 15) | item16;
 					}
 
 					memcpy(PES_audio + audio_packet_length, buffer + pos, 188 - pos);
@@ -207,9 +232,9 @@ private:
 				}
 			}
 		}
-		GenerateAudioPacket(PES_audio, audio_packet_length, PTS);
+		GenerateAudioPacket(PES_audio, audio_packet_length, audio_PTS);
 
-		GenerateVideoPacket(PES_video, video_packet_length, PTS);
+		GenerateVideoPacket(PES_video, video_packet_length, video_PTS);
 		GenerateVideoPacket(0, 0, 0);
 
 		videoLastPacket = videoPacketNr;
@@ -217,5 +242,7 @@ private:
 
 		audioLastPacket = audioPacketNr;
 		SetEvent(more_audiopackets_ready);
+
+		WriteVideoFile();
 	}
 };

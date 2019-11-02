@@ -159,65 +159,65 @@ void EventLoop()
 			{
 				switch (msg.message)
 				{
-				case  Messages::OPENVIDEO:
-				{
-					videoBuffer = (VideoBuffer*)msg.wParam;
-					char *filename = (char*)msg.lParam;
-					RenderFrame(videoBuffer->Open(filename));
-					break;
-				}
-				case  Messages::GOTO:
-				{
-					videoBuffer = (VideoBuffer*)msg.wParam;
-					CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
-					RenderFrame(videoBuffer->GotoTime(pts));
-					break;
-				}
-				case  Messages::PLAYPAUSE:
-				{
-					if (mode == PAUSED)
-						Play();
-					else
-						Pause();
-					break;
-				}
-				case  Messages::UP:
-				{
-					UpCommand();
-					break;
-				}
-				case  Messages::DOWN:
-				{
-					DownCommand();
-					break;
-				}
-				case  Messages::STEPNEXTFRAME:
-				{
-					StepNextFrame();
-					break;
-				}
-				case  Messages::STEPPREVFRAME:
-				{
-					StepPrevFrame();
-					break;
-				}
-				case Messages::VISUALSEARCH:
-				{
-					VideoBuffer* start = (VideoBuffer*)msg.wParam;
-					VideoBuffer* finish = (VideoBuffer*)msg.lParam;
-					Search(start, finish);
-					break;
-				}
-				case Messages::FASTFORWARD:
-				{
-					FastForw();
-					break;
-				}
-				case Messages::REWIND:
-				{
-					FastRewind();
-					break;
-				}
+					//case  Messages::OPENVIDEO:
+					//{
+					//	videoBuffer = (VideoBuffer*)msg.wParam;
+					//	char *filename = (char*)msg.lParam;
+					//	RenderFrame(videoBuffer->Open(filename));
+					//	break;
+					//}
+					case  Messages::GOTO:
+					{
+						videoBuffer = (VideoBuffer*)msg.wParam;
+						CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
+						RenderFrame(videoBuffer->GotoTime(pts));
+						break;
+					}
+					case  Messages::PLAYPAUSE:
+					{
+						if (mode == PAUSED)
+							Play();
+						else
+							Pause();
+						break;
+					}
+					case  Messages::UP:
+					{
+						UpCommand();
+						break;
+					}
+					case  Messages::DOWN:
+					{
+						DownCommand();
+						break;
+					}
+					case  Messages::STEPNEXTFRAME:
+					{
+						StepNextFrame();
+						break;
+					}
+					case  Messages::STEPPREVFRAME:
+					{
+						StepPrevFrame();
+						break;
+					}
+					case Messages::VISUALSEARCH:
+					{
+						VideoBuffer* start = (VideoBuffer*)msg.wParam;
+						VideoBuffer* finish = (VideoBuffer*)msg.lParam;
+						Search(start, finish);
+						break;
+					}
+					case Messages::FASTFORWARD:
+					{
+						FastForw();
+						break;
+					}
+					case Messages::REWIND:
+					{
+						FastRewind();
+						break;
+					}
 				}
 			}
 		}

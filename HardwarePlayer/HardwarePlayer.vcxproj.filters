@@ -76,6 +76,9 @@
     <ClInclude Include="VideoFileWriter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="VideoSource1.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

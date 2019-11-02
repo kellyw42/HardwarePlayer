@@ -19,10 +19,13 @@ private:
 				break;
 
 			// fixme: write via larger memory buffer ???
-			fwrite(&packet->timestamp, sizeof(CUvideotimestamp), 1, file);
-			fwrite(&packet->flags, sizeof(unsigned long), 1, file);
+			//Trace2("Write(filename=%s, size=%ld, PTS=%lld, data[0]=%d, data[1]=%d, data[2]=%d, data[3]=%d, data[4]=%d", 
+			//	destFilename, packet->payload_size, packet->timestamp, packet->payload[0], packet->payload[1], packet->payload[2], packet->payload[3], packet->payload[4]);
+
+			fwrite(&packet->timestamp,    sizeof(CUvideotimestamp), 1, file);
+			fwrite(&packet->flags,        sizeof(unsigned long), 1, file);
 			fwrite(&packet->payload_size, sizeof(unsigned long), 1, file);
-			fwrite(&packet->payload, sizeof(unsigned char), packet->payload_size, file);
+			fwrite(packet->payload, 1, packet->payload_size, file);
 		}
 
 		fclose(file);

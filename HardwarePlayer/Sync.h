@@ -161,7 +161,7 @@ DWORD WINAPI SyncProc(LPVOID lpThreadParameter)
 {
 	HANDLE more_bangs[2] = { new_start_bang, new_finish_bang };
 
-	while (start_count < 2 || finish_count < 2);
+	while (start_count < 10 || finish_count < 10);
 		WaitForMultipleObjects(2, more_bangs, false, INFINITE);
 
 	while (true)

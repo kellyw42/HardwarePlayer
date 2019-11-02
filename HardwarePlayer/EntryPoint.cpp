@@ -23,7 +23,7 @@ extern "C"
 #include <cudaGL.h>
 #include <cuda_gl_interop.h>
 #include "nvcuvid.h"
-#include "interpolation.h"
+//#include "interpolation.h"
 
 #include "Helper.h"
 #include "FrameQueue.h"
@@ -34,6 +34,7 @@ extern "C"
 #include "Sync.h"
 #include "AudioDecoder.h"
 #include "VideoSource0.h"
+#include "VideoSource1.h"
 #include "VideoSource.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
@@ -56,10 +57,10 @@ extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
 	StartSync(sync_handler);
 }
 
-extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhandler event_handler, timehandler time_handler)
+extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhandler event_handler, timehandler time_handler, progresshandler progress_handler)
 {
 	VideoBuffer *buffer = new VideoBuffer(event_handler, time_handler);
-	PostThreadMessage(eventLoopThread, Messages::OPENVIDEO, (WPARAM)buffer, (LPARAM)_strdup(filename));
+	buffer->Open(filename, progress_handler);
 	return buffer;
 }
 

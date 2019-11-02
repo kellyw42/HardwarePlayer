@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows;
 using System.IO;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System;
@@ -182,18 +183,6 @@ namespace PhotoFinish
             var date = DateTime.Parse(CurrentMeet);
             var window = new Views.UploadVideos(date);
             window.Show();
-
-            /*
-            foreach (var drive in System.IO.DriveInfo.GetDrives())
-            {
-                string StreamFolder = drive.RootDirectory + @"PRIVATE\AVCHD\BDMV\STREAM\";
-                if (drive.IsReady && drive.DriveType == DriveType.Removable && System.IO.Directory.Exists(StreamFolder))
-                {
-
-                    window.Show();
-                }
-            }
-            */
         }
 
         private void start_event_handler(long event_type)
@@ -255,36 +244,6 @@ namespace PhotoFinish
             });
         }
 
-        //long time1 = -1, time2 = -1;
-        //bool startDone, finishDone;
-
-        //List<TimeStamp> startBangs = new List<TimeStamp>();
-        //List<TimeStamp> finishBangs = new List<TimeStamp>();
-/*
-        private void StartAudioHandler(long sample)
-        {
-            if (sample < 0)
-                startDone = true;
-            else
-            {
-                var pts = StartTimeStamp.start + sample * TimeStamp.FRAMES_PER_SECOND * TimeStamp.PTS_PER_FRAME / 48000;
-                startBangs.Add(new TimeStamp(this, null, StartTimeStamp.start, pts, StartTimeStamp.filename));
-            }
-        }
-
-        private void FinishAudioHandler(long sample)
-        {
-            if (sample < 0)
-                finishDone = true;
-            else
-            {
-                var pts = FinishTimeStamp.start + sample * TimeStamp.FRAMES_PER_SECOND * TimeStamp.PTS_PER_FRAME / 48000;
-                finishBangs.Add(new TimeStamp(this, null, FinishTimeStamp.start, pts, FinishTimeStamp.filename));
-            }
-        }
- */
-        //TimeStamp startSync, finishSync;
-
         String FindVideo(String which)
         {
             var files = System.IO.Directory.EnumerateFiles(Directory, "Track1-" + which + "*.MTS");
@@ -313,63 +272,10 @@ namespace PhotoFinish
                 return;
 
             StartTimeStamp.filename = startFile;
-            startPlayer = NativeVideo.OpenVideo(startFile, StartEventHandler, StartTimeHandler);
+            startPlayer = NativeVideo.OpenVideo(startFile, StartEventHandler, StartTimeHandler, null);
 
             FinishTimeStamp.filename = finishFile;
-            finishPlayer = NativeVideo.OpenVideo(finishFile, FinishEventHandler, FinishTimeHandler);
-
-
-            //var view = new Views.BangView();
-            //view.DataContext = this;
-            //view.Show();
-            /*
-                        NativeVideo.AudioSearch(Directory + StartTimeStamp.filename + ".audio", audio1);
-                        NativeVideo.AudioSearch(Directory + FinishTimeStamp.filename + ".audio", audio2);
-
-                        ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                        while (!finishDone)
-                            System.Threading.Thread.Sleep(100);
-
-                        foreach (var t in finishBangs)
-                            if (FinishTimeStamp.ToTime() <= t.ToTime() && t.ToTime() <= FinishTimeStamp.ToTime().Add(TimeSpan.FromSeconds(0.1)))
-                            {
-                                finishSync = t;
-                                break;
-                            }
-
-                        ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-                        while (!startDone)
-                            System.Threading.Thread.Sleep(100);
-
-                        foreach (var t in startBangs)
-                            if (StartTimeStamp.ToTime() <= t.ToTime() && t.ToTime() <= StartTimeStamp.ToTime().Add(TimeSpan.FromSeconds(0.1)))
-                            {
-                                startSync = t;
-                                break;
-                            }
-
-                        StreamWriter writer = new StreamWriter("points.csv");
-                        foreach (var t1 in startBangs)
-                        {
-                            var offset1 = t1.pts - startSync.pts;
-                            foreach (var t2 in finishBangs)
-                            {
-                                var offset2 = t2.pts - finishSync.pts;
-                                if (offset2 - 5 * 1800 <= offset1 && offset1 <= offset2 + 5 * 1800)
-                                {
-                                    writer.WriteLine("{0},{1}", offset1, offset2);
-                                    break;
-                                }
-                            }
-                        }
-                        writer.Close();
-                    */
-        }
-
-        private void StudySync()
-        {
+            finishPlayer = NativeVideo.OpenVideo(finishFile, FinishEventHandler, FinishTimeHandler, null);
         }
 
         TimeStamp startSync, finishSync;
@@ -386,13 +292,8 @@ namespace PhotoFinish
             AdjustEntries(race);
             SaveRaces();
 
-
             startSync = new TimeStamp(StartTimeStamp); 
             finishSync = new TimeStamp(FinishTimeStamp);
-
-            var thread = new System.Threading.Thread(StudySync);
-            thread.IsBackground = true;
-            thread.Start();
         }
 
         private void VisualSearch()
@@ -502,18 +403,23 @@ namespace PhotoFinish
             if (CurrentEntry == null || CurrentEntry.Race == null)
                 return;
 
-            FinishTimeStamp.race = CurrentEntry.Race;
-            if (FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
-            {
-                FinishTimeStamp.filename = CurrentEntry.Race.FinishFile;
-                finishPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.FinishFile, FinishEventHandler, FinishTimeHandler);
-            }
-
             StartTimeStamp.race = CurrentEntry.Race;
-            if (StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename)
+            FinishTimeStamp.race = CurrentEntry.Race;
+
+            if (StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename || FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
             {
                 StartTimeStamp.filename = CurrentEntry.Race.StartTime.filename;
-                startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler);
+                FinishTimeStamp.filename = CurrentEntry.Race.FinishFile;
+
+                //if (startPlayer != IntPtr.Zero)
+                //    NativeVideo.Close(startPlayer);
+
+                var progress = new PhotoFinish.Views.LoadProgressPair();
+
+                var loadStart = Task.Run(() => startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler, progress.StartProgressHandler));
+                var loadFinish = Task.Run(() => finishPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.FinishFile, FinishEventHandler, FinishTimeHandler, progress.FinishProgressHandler));
+
+                progress.ShowDialog();
             }
 
             NativeVideo.GotoTime(startPlayer, CurrentEntry.Race.StartTime.pts);

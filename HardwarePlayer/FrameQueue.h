@@ -20,8 +20,9 @@ public:
 
 	void enqueue(const CUVIDPARSERDISPINFO *pPicParams)
 	{
+		Trace2("\t\t\taIsFrameInUse_[%d] = true;", pPicParams->picture_index);
 		aIsFrameInUse_[pPicParams->picture_index] = true;
-
+		
 		while (!stopped)
 		{
 			bool bPlacedFrame = false;
@@ -30,12 +31,11 @@ public:
 			if (nFramesInQueue_ < (int)FrameQueue::cnMaximumSize)
 			{
 				int iWritePosition = (nReadPosition_ + nFramesInQueue_) % cnMaximumSize;
+				Trace2("write posn %d", iWritePosition);
 				aDisplayQueue_[iWritePosition] = *pPicParams;
 				nFramesInQueue_++;
 				bPlacedFrame = true;
 			}
-			else
-				assert(0);
 
 			LeaveCriticalSection(&oCriticalSection_);
 
@@ -79,6 +79,7 @@ public:
 
 	void releaseFrame(int nPictureIndex)
 	{
+		Trace2("\t\t\treleaseFrame[%d]", nPictureIndex);
 		aIsFrameInUse_[nPictureIndex] = false;
 	}
 

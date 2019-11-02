@@ -14,13 +14,13 @@ public:
 		SDCardReader* reader = new SDCardReader(clone, num_files, progress_handler);
 		reader->StartThread();
 
-		H264Parser* parser = new H264Parser(reader, progress_handler);
+		H264Parser* parser = new H264Parser(reader, progress_handler, _strdup(destFilename));
 		parser->StartThread();
 
 		AudioDecoder* decoder = new AudioDecoder(_strdup(directory), which, parser, progress_handler);
 		decoder->StartThread();
 
-		VideoFileWriter* writer = new VideoFileWriter(_strdup(destFilename), parser, progress_handler);
-		writer->StartThread();
+		//VideoFileWriter* writer = new VideoFileWriter(_strdup(destFilename), parser, progress_handler);
+		//writer->StartThread();
 	}
 };

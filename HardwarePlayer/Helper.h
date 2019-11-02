@@ -11,7 +11,7 @@
 extern "C"
 {
 	typedef void(__stdcall *ReportSync)(int, long, double, double);
-	typedef void(__stdcall *progresshandler)(int, long, long, char*);
+	typedef void(__stdcall *progresshandler)(int, long long, long long, char*);
 	typedef void(__stdcall *eventhandler)(long long);
 	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
 }
@@ -31,9 +31,8 @@ void inline Trace(const char* format, ...)
 	*/
 }
 
-void inline Trace2(const char* format, ...)
+void Trace2(const char* format, ...)
 {
-	/*
 	char msg[1024];
 	va_list argptr;
 	va_start(argptr, format);
@@ -41,17 +40,16 @@ void inline Trace2(const char* format, ...)
 	va_end(argptr);
 	OutputDebugStringA(msg);
 	OutputDebugStringA("\n");
-	*/
 }
 
 void CHECK(CUresult result)
 {
 	if (result != CUDA_SUCCESS)
 	{
-		char msg[256];
-		const char* e = msg;
-		cuGetErrorName(result, &e);
-		printf("WAK Error %d %s\n", result, e);
+		char errorName[256], msg[256];
+		cuGetErrorName(result, (const char**)&errorName);
+		sprintf(msg, "WAK Error %d %s\n", result, errorName);
+		MessageBoxA(NULL, msg, "CUDA error", MB_OK);
 		exit(1);
 	}
 }
@@ -71,7 +69,6 @@ inline void __cudaSafeCall(cudaError err, const char *file, const int line)
 }
 
 using namespace std::chrono;
-
 
 high_resolution_clock::time_point starts[10000];
 high_resolution_clock::time_point ends[10000];

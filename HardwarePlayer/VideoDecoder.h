@@ -8,14 +8,14 @@ class VideoDecoder
 {
 public:
 	FrameQueue* frameQueue;
-	VideoSource *source;
+	VideoSource1 *source;
 	CUvideoparser parser;
 	CUvideodecoder decoder;
 	CUVIDEOFORMAT format;
 	CUVIDPARSERPARAMS parserParams;
 	CUVIDDECODECREATEINFO   decoderParams;
 
-	CUVIDEOFORMAT OpenVideo(char* filename)
+	CUVIDEOFORMAT OpenVideo(char* filename, progresshandler progress_handler)
 	{
 		Trace("VideoDecoder::OpenVideo(%s);", filename);
 		frameQueue = new FrameQueue();
@@ -25,7 +25,9 @@ public:
 		params.pUserData = this;
 		params.pfnVideoDataHandler = HandleVideoData;
 
-		source = new VideoSource(filename, params);
+		//source = new VideoSource(filename, params);
+
+		source = new VideoSource1(_strdup(filename), this, HandleVideoData, progress_handler);
 
 		CUvideosource src;
 		CHECK(cuvidCreateVideoSource(&src, filename, &params));
@@ -56,7 +58,7 @@ public:
 		decoderParams.bitDepthMinus8 = format.bit_depth_luma_minus8;
 		decoderParams.ChromaFormat = format.chroma_format;
 		decoderParams.CodecType = format.codec;
-		decoderParams.DeinterlaceMode = cudaVideoDeinterlaceMode_Adaptive; // ???
+		decoderParams.DeinterlaceMode = cudaVideoDeinterlaceMode_Weave; // cudaVideoDeinterlaceMode_Adaptive; // ???
 		decoderParams.OutputFormat = cudaVideoSurfaceFormat_NV12;
 		decoderParams.ulCreationFlags = cudaVideoCreate_PreferCUVID;
 		decoderParams.ulIntraDecodeOnly = 0;
@@ -79,7 +81,7 @@ public:
 		decoderParams.ulTargetHeight = (decoderParams.target_rect.bottom - decoderParams.target_rect.top);
 		decoderParams.ulTargetWidth = (decoderParams.target_rect.right - decoderParams.target_rect.left);
 
-		Create();
+		//Create();
 	}
 
 	void Create()
@@ -145,24 +147,25 @@ public:
 
 int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 {
-	//printf("HandleVideoData(%lld)\n", pPacket->timestamp);
+	Trace2("HandleVideoData(%lld)", pPacket->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	CHECK(cuvidParseVideoData(container->parser, pPacket));
+	Trace2("return from cuvidParseVideoData (%lld)", pPacket->timestamp);
 	return true;
 }
 
 int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 {
-	//printf("HandlePictureDecode(%d)\n", pPicParams->CurrPicIdx);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	container->frameQueue->waitUntilFrameAvailable(pPicParams->CurrPicIdx);
+	Trace2("\tHandlePictureDecode(%d)", pPicParams->CurrPicIdx);
 	CHECK(cuvidDecodePicture(container->decoder, pPicParams));
 	return true;
 }
 
 int CUDAAPI HandlePictureDisplay(void *userData, CUVIDPARSERDISPINFO *p)
 {
-	//printf("HandlePictureDisplay(%lld)\n", p->timestamp);
+	Trace2("\t\tHandlePictureDisplay(%lld)", p->timestamp);
 	VideoDecoder *container = (VideoDecoder*)userData;
 	container->frameQueue->enqueue(p);
 	return true;

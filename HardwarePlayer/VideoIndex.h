@@ -66,9 +66,9 @@ public:
 					uint8_t item33 = buf[33]; // IFrame
 
 					bool start = 0x40 & item1;
-					bool payload = 0x10 & item3;
+					bool payload = 0x10 & item3; 
 					bool pid = (0x1F & item1) == 0x10 && (item2 == 0x11);
-					bool DTS_indicator = (item11 & 0xC0) == 0xC0;
+					bool DTS_indicator = (item11 & 0xC0) == 0xC0; // idr_pic_id
 					bool IFrame = item33 == 0x27;
 
 					if (start && pid && payload && DTS_indicator && IFrame)

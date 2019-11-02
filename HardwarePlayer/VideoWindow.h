@@ -121,11 +121,8 @@ void RenderFrame(VideoFrame *frame)
 		SetWindowTextA(hwnd, msg);
 	}
 
-	latest = frame;
-	videoBuffer->TimeEvent(frame->pts);
-
 	int width = videoBuffer->width;
-	int height = videoBuffer->height;
+	int height = videoBuffer->height/2;
 
 	float w = ((float)width) / display_width;
 	float h = ((float)height) / display_height;
@@ -159,10 +156,10 @@ void RenderFrame(VideoFrame *frame)
 	glBegin(GL_QUADS);
 
 		glTexCoord2f(0, (float)height);
-		glVertex2f(0, 1-h);
+		glVertex2f(0, 0);
 
 		glTexCoord2f((float)width, (float)height);
-		glVertex2f(w, 1-h);
+		glVertex2f(w, 0);
 
 		glTexCoord2f((float)width, 0);
 		glVertex2f(w, 1);
@@ -179,13 +176,24 @@ void RenderFrame(VideoFrame *frame)
 
 	RenderOverlay(frame);
 
-	glFlush();
+	//glFlush();
 
 	Trace("SwapBuffers(hdc)");
 
 	StartTime(7);
 	SwapBuffers(hdc);
 	EndTime(7);
+
+	glFinish();
+
+	latest = frame;
+	videoBuffer->TimeEvent(frame->pts);
+
+	{
+		char msg[128];
+		sprintf(msg, "PTS %lld %d", frame->pts, frame->field);
+		SetWindowTextA(hwnd, msg);
+	}
 }
 
 LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
