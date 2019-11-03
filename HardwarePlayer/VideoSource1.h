@@ -44,12 +44,13 @@ private:
 #define BLOCK 0x3F
 
 public:
-	VideoSource1(char* MTSFilename, void *decoder, PFNVIDSOURCECALLBACK handleVideoData, progresshandler progress_handler)
+	CUVIDEOFORMAT format;
+
+	VideoSource1(char* MTSFilename, progresshandler progress_handler)
 	{
-		this->handleVideoData = handleVideoData;
-		this->decoder = decoder;
 		MTSFilename[strlen(MTSFilename) - 4] = 0;
 		sprintf(videoFilename, "%s.video", MTSFilename);
+
 		fopen_s(&file, videoFilename, "rb");
 		_fseeki64(file, 0, SEEK_END);
 		long long length = _ftelli64(file);
@@ -65,6 +66,9 @@ public:
 		}
 		progress_handler(0, total_read / MegaBytes, length / MegaBytes, "MB");
 
+		format = *(CUVIDEOFORMAT*)buffer;
+		buffer += sizeof(format);
+
 		videoLastPacket = *(long*)buffer;
 		buffer += sizeof(long);
 		videoPackets = (CUVIDSOURCEDATAPACKET*)buffer;
@@ -77,14 +81,16 @@ public:
 			videoPackets[i].payload = buffer;
 			buffer += videoPackets[i].payload_size;
 		}
+		progress_handler(1, videoLastPacket, videoLastPacket, "packets");
+		progress_handler(2, 0, 0, "Done!");
+	}
 
-		progress_handler(1, videoLastPacket, videoLastPacket, "Done!");
-
+	void Attach(void *decoder, PFNVIDSOURCECALLBACK handleVideoData)
+	{
+		this->handleVideoData = handleVideoData;
+		this->decoder = decoder;
 		started = false;
 		startEvent = CreateEvent(NULL, true, false, NULL);
-
-		while (1);
-
 		CreateThread(NULL, 0, Parse, this, 0, NULL);
 	}
 

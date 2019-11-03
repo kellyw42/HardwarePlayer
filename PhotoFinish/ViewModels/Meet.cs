@@ -272,10 +272,10 @@ namespace PhotoFinish
                 return;
 
             StartTimeStamp.filename = startFile;
-            startPlayer = NativeVideo.OpenVideo(startFile, StartEventHandler, StartTimeHandler, null);
+            //startPlayer = NativeVideo.OpenVideo(startFile, StartEventHandler, StartTimeHandler, null);
 
             FinishTimeStamp.filename = finishFile;
-            finishPlayer = NativeVideo.OpenVideo(finishFile, FinishEventHandler, FinishTimeHandler, null);
+            //finishPlayer = NativeVideo.OpenVideo(finishFile, FinishEventHandler, FinishTimeHandler, null);
         }
 
         TimeStamp startSync, finishSync;
@@ -416,8 +416,17 @@ namespace PhotoFinish
 
                 var progress = new PhotoFinish.Views.LoadProgressPair();
 
-                var loadStart = Task.Run(() => startPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.StartTime.filename, StartEventHandler, StartTimeHandler, progress.StartProgressHandler));
-                var loadFinish = Task.Run(() => finishPlayer = NativeVideo.OpenVideo(Directory + CurrentEntry.Race.FinishFile, FinishEventHandler, FinishTimeHandler, progress.FinishProgressHandler));
+                Task.Run(() =>
+                {
+                    var startSource = NativeVideo.LoadVideo(Directory + CurrentEntry.Race.StartTime.filename, progress.StartProgressHandler);
+                    startPlayer = NativeVideo.OpenVideo(startSource, StartEventHandler, StartTimeHandler);
+                });
+
+                Task.Run(() =>
+                {
+                    var finishSource = NativeVideo.LoadVideo(Directory + CurrentEntry.Race.FinishFile, progress.FinishProgressHandler);
+                    finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler);
+                });
 
                 progress.ShowDialog();
             }

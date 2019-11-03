@@ -5,14 +5,12 @@ class AudioDecoder
 private:
 	H264Parser *parser;
 	progresshandler progress_handler;
-	char *directory;
 	int which;
 
 public:
-	AudioDecoder(char* directory, int which, H264Parser* parser, progresshandler progress_handler)
+	AudioDecoder(int which, H264Parser* parser, progresshandler progress_handler)
 	{
 		this->which = which;
-		this->directory = directory;
 		this->parser = parser;
 		this->progress_handler = progress_handler;
 	}
@@ -44,7 +42,6 @@ private:
 	const int quiet_period = 60;
 	const int loud = 8000;
 	const int loud_period = 200;
-	FILE *file;
 
 #define ABS(a)	((a)>0?(a):-(a))
 
@@ -73,7 +70,6 @@ private:
 			{
 				bangs[bang_count++] = start;
 				new_bangs(which, bangs, bang_count);
-				fprintf(file, "%ld\n", start);
 				time_since_long_silence = 10000000;
 			}
 
@@ -87,10 +83,6 @@ private:
 		AVCodec * audioCodec = avcodec_find_decoder(AV_CODEC_ID_AC3);
 		AVCodecContext *audioCodecCtx = avcodec_alloc_context3(audioCodec);
 		avcodec_open2(audioCodecCtx, audioCodec, NULL);
-
-		char name[256];
-		sprintf(name, "%s%s.bangs", directory, which ? "Start" : "Finish");
-		fopen_s(&file, name, "w");
 
 		while (true)
 		{
@@ -106,8 +98,6 @@ private:
 
 		end_of_file = true;
 		new_bangs(which, bangs, 0);
-
-		fclose(file);
 
 		avcodec_close(audioCodecCtx);
 		avcodec_free_context(&audioCodecCtx);

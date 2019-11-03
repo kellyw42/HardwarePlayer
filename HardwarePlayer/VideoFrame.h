@@ -20,7 +20,6 @@ public:
 		glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * 4, 0, GL_STREAM_DRAW);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 		
-		//cuGLRegisterBufferObject(gl_pbo); // deprecated?
 		CHECK(cuGraphicsGLRegisterBuffer(&resource, gl_pbo, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
 	}
 };

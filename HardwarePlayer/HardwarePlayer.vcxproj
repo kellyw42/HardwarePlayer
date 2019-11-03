@@ -23,7 +23,6 @@
     <ClInclude Include="SDCardReader.h" />
     <ClInclude Include="Sync.h" />
     <ClInclude Include="VideoConverter.h" />
-    <ClInclude Include="VideoFileWriter.h" />
     <ClInclude Include="VideoPlayer.h" />
     <ClInclude Include="VideoSource0.h" />
     <ClInclude Include="VideoSource1.h" />
@@ -34,7 +33,6 @@
     <ClInclude Include="VideoDecoder.h" />
     <ClInclude Include="VideoFrame.h" />
     <ClInclude Include="VideoIndex.h" />
-    <ClInclude Include="VideoSource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

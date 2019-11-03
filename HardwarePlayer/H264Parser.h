@@ -12,15 +12,17 @@ private:
 	bool videoWaiting = false, audioWaiting = false;
 	HANDLE more_videopackets_ready, more_audiopackets_ready;
 	char* destVideoFilename;
+	CUVIDEOFORMAT format;
 	SDCardReader* reader;
 	progresshandler progress_handler;
 
 public:
-	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename)
+	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename, CUVIDEOFORMAT format)
 	{
 		this->reader = reader;
 		this->progress_handler = progress_handler;
 		this->destVideoFilename = destVideoFilename;
+		this->format = format;
 	}
 
 private:
@@ -37,7 +39,7 @@ public:
 		more_audiopackets_ready = CreateEvent(0, FALSE, FALSE, 0);
 		more_videopackets_ready = CreateEvent(0, FALSE, FALSE, 0);
 		CreateThread(0, 0, ParseThreadProc, this, 0, 0);
-	}	
+	}
 
 	CUVIDSOURCEDATAPACKET *getNextVideoPacket()
 	{
@@ -93,8 +95,7 @@ private:
 		packet->payload_size = size;
 		packet->flags = CUVID_PKT_TIMESTAMP;
 		packet->timestamp = PTS;
-		//Trace2("GenerateVideoPacket(file=%s, size=%ld PTS=%lld, data[0]=%d, data[1]=%d, data[2]=%d, data[3]=%d, data[4]=%d", 
-		//	this->reader->filenames[0], size, PTS, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+		printf("%ld: GenerateVideoPacket(file=%s, size=%ld PTS=%lld)\n", videoPacketNr, reader->filenames[0], size, PTS);
 
 		if (!payload || size == 0)
 			packet->flags |= CUVID_PKT_ENDOFSTREAM;
@@ -127,6 +128,8 @@ private:
 	{
 		FILE *file;
 		fopen_s(&file, destVideoFilename, "wb");
+
+		fwrite(&format, sizeof(format), 1, file);
 
 		fwrite(&videoLastPacket, sizeof(videoLastPacket), 1, file);
 		fwrite(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
@@ -199,7 +202,7 @@ private:
 						int64_t item14 = (buffer[14] << 8 | buffer[15]) >> 1;
 						int64_t item16 = (buffer[16] << 8 | buffer[17]) >> 1;
 						video_PTS = (item13 << 30) | (item14 << 15) | item16;
-						//Trace2("video_PTS=%lld", video_PTS);
+						printf("video_PTS=%lld\n", video_PTS);
 					}
 
 					memcpy(PES_video + video_packet_length, buffer + pos, 188 - pos);

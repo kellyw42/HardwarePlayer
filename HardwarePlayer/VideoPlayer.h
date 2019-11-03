@@ -159,13 +159,13 @@ void EventLoop()
 			{
 				switch (msg.message)
 				{
-					//case  Messages::OPENVIDEO:
-					//{
-					//	videoBuffer = (VideoBuffer*)msg.wParam;
-					//	char *filename = (char*)msg.lParam;
-					//	RenderFrame(videoBuffer->Open(filename));
-					//	break;
-					//}
+					case  Messages::OPENVIDEO:
+					{
+						videoBuffer = (VideoBuffer*)msg.wParam;
+						VideoSource1 *source = (VideoSource1*)msg.lParam;
+						videoBuffer->Open(source);
+						break;
+					}
 					case  Messages::GOTO:
 					{
 						videoBuffer = (VideoBuffer*)msg.wParam;

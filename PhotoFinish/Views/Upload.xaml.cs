@@ -154,7 +154,7 @@ namespace PhotoFinish.Views
 
         private void UploadVideos_Loaded(object sender, RoutedEventArgs e)
         {
-            if (false && !weird)
+            if (!weird)
                 UploadFilesNow();
         }
 
@@ -348,7 +348,7 @@ namespace PhotoFinish.Views
 
                 var which = (name == "Start") ? 0 : 1;
 
-                NativeVideo.OpenCardVideo(directory() + filename, directory(), which, files.ToArray(), files.Count, ProgressHandler);
+                NativeVideo.OpenCardVideo(directory() + filename, directory(), which, files.ToArray(), files.Count, (1UL << 31), ProgressHandler);
             });
         }
     }

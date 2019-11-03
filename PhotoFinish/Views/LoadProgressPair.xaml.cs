@@ -20,26 +20,34 @@ namespace PhotoFinish.Views
     public partial class LoadProgressPair : Window
     {
         bool startDone = false, finishDone = false;
+
+        private void Done()
+        {
+            Dispatcher.Invoke(() => Close());
+        }
+
         public void StartProgressHandler(int thread, long completed, long total, string units)
         {
-            start.ProgressHandler(thread, completed, total, units);
-            if (units == "Done!")
+            if (thread == 2)
             {
-                startDone = true;
+               startDone = true;
                 if (finishDone)
-                    Close();
+                    Done();
             }
+            else
+                start.ProgressHandler(thread, completed, total, units);
         }
 
         public void FinishProgressHandler(int thread, long completed, long total, string units)
         {
-            finish.ProgressHandler(thread, completed, total, units);
-            if (units == "Done!")
+            if (thread == 2)
             {
                 finishDone = true;
                 if (startDone)
-                    Close();
+                    Done();
             }
+            else
+                finish.ProgressHandler(thread, completed, total, units);
         }
 
         public LoadProgressPair()

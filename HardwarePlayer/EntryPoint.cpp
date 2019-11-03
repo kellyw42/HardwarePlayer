@@ -30,12 +30,10 @@ extern "C"
 #include "VideoIndex.h"
 #include "SDCardReader.h"
 #include "H264Parser.h"
-#include "VideoFileWriter.h"
 #include "Sync.h"
 #include "AudioDecoder.h"
 #include "VideoSource0.h"
 #include "VideoSource1.h"
-#include "VideoSource.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
 #include "VideoConverter.h"
@@ -47,9 +45,9 @@ extern "C"
 
 DWORD eventLoopThread;
 
-extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename, char* directory, int which, char** filenames, int size, progresshandler progress_handler)
+extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename, int which, char** filenames, int count, size_t maxSize, progresshandler progress_handler)
 {
-	return new VideoSource0(destFilename, directory, which, filenames, size, progress_handler);
+	return new VideoSource0(destFilename, which, filenames, count, maxSize, progress_handler);
 }
 
 extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
@@ -57,10 +55,15 @@ extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
 	StartSync(sync_handler);
 }
 
-extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(char* filename, eventhandler event_handler, timehandler time_handler, progresshandler progress_handler)
+extern "C" __declspec(dllexport) VideoSource1* LoadVideo(char* filename, progresshandler progress_handler)
+{
+	return new VideoSource1(filename, progress_handler);
+}
+
+extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(VideoSource1* source, eventhandler event_handler, timehandler time_handler)
 {
 	VideoBuffer *buffer = new VideoBuffer(event_handler, time_handler);
-	buffer->Open(filename, progress_handler);
+	PostThreadMessage(eventLoopThread, Messages::OPENVIDEO, (WPARAM)buffer, (LPARAM)source);
 	return buffer;
 }
 

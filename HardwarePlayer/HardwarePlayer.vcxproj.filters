@@ -28,9 +28,6 @@
     <ClInclude Include="cuviddec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VideoSource.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="VideoBuffer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -71,9 +68,6 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="Sync.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VideoFileWriter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="VideoSource1.h">

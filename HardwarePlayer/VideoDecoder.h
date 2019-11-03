@@ -11,40 +11,36 @@ public:
 	VideoSource1 *source;
 	CUvideoparser parser;
 	CUvideodecoder decoder;
-	CUVIDEOFORMAT format;
 	CUVIDPARSERPARAMS parserParams;
 	CUVIDDECODECREATEINFO   decoderParams;
 
-	CUVIDEOFORMAT OpenVideo(char* filename, progresshandler progress_handler)
+	void OpenVideo(VideoSource1 *source)
 	{
-		Trace("VideoDecoder::OpenVideo(%s);", filename);
+		this->source = source;	
 		frameQueue = new FrameQueue();
 
+		source->Attach(this, HandleVideoData);
+/*
 		CUVIDSOURCEPARAMS params;
 		memset(&params, 0, sizeof(CUVIDSOURCEPARAMS));
 		params.pUserData = this;
 		params.pfnVideoDataHandler = HandleVideoData;
 
-		//source = new VideoSource(filename, params);
-
-		source = new VideoSource1(_strdup(filename), this, HandleVideoData, progress_handler);
-
 		CUvideosource src;
 		CHECK(cuvidCreateVideoSource(&src, filename, &params));
 		CHECK(cuvidGetSourceVideoFormat(src, &format, 0));
-
-		return format;
+*/
 	}
 
 	void Init()
 	{
 		CUVIDEOFORMATEX formatEx;
 		memset(&formatEx, 0, sizeof(CUVIDEOFORMATEX));
-		formatEx.format = format;
+		formatEx.format = source->format;
 
 		memset(&parserParams, 0, sizeof(CUVIDPARSERPARAMS));
 		parserParams.pUserData = this;
-		parserParams.CodecType = format.codec;
+		parserParams.CodecType = source->format.codec;
 		parserParams.pExtVideoInfo = &formatEx;
 		parserParams.pfnDecodePicture = HandlePictureDecode;
 		parserParams.pfnDisplayPicture = HandlePictureDisplay;
@@ -55,9 +51,9 @@ public:
 		parserParams.ulMaxNumDecodeSurfaces = 20;
 
 		memset(&decoderParams, 0, sizeof(CUVIDDECODECREATEINFO));
-		decoderParams.bitDepthMinus8 = format.bit_depth_luma_minus8;
-		decoderParams.ChromaFormat = format.chroma_format;
-		decoderParams.CodecType = format.codec;
+		decoderParams.bitDepthMinus8 = source->format.bit_depth_luma_minus8;
+		decoderParams.ChromaFormat = source->format.chroma_format;
+		decoderParams.CodecType = source->format.codec;
 		decoderParams.DeinterlaceMode = cudaVideoDeinterlaceMode_Weave; // cudaVideoDeinterlaceMode_Adaptive; // ???
 		decoderParams.OutputFormat = cudaVideoSurfaceFormat_NV12;
 		decoderParams.ulCreationFlags = cudaVideoCreate_PreferCUVID;
@@ -65,18 +61,18 @@ public:
 		decoderParams.ulNumDecodeSurfaces = 20;
 		decoderParams.ulNumOutputSurfaces = 2;
 		decoderParams.vidLock = 0;
-		decoderParams.ulWidth = format.coded_width;
-		decoderParams.ulHeight = format.coded_height;
+		decoderParams.ulWidth = source->format.coded_width;
+		decoderParams.ulHeight = source->format.coded_height;
 		
-		decoderParams.display_area.left = format.display_area.left;
-		decoderParams.display_area.right = format.display_area.right;
-		decoderParams.display_area.top = format.display_area.top;
-		decoderParams.display_area.bottom = format.display_area.bottom;
+		decoderParams.display_area.left = source->format.display_area.left;
+		decoderParams.display_area.right = source->format.display_area.right;
+		decoderParams.display_area.top = source->format.display_area.top;
+		decoderParams.display_area.bottom = source->format.display_area.bottom;
 
-		decoderParams.target_rect.left = format.display_area.left;
-		decoderParams.target_rect.right = format.display_area.right;
-		decoderParams.target_rect.top = format.display_area.top;
-		decoderParams.target_rect.bottom = format.display_area.bottom;
+		decoderParams.target_rect.left = source->format.display_area.left;
+		decoderParams.target_rect.right = source->format.display_area.right;
+		decoderParams.target_rect.top = source->format.display_area.top;
+		decoderParams.target_rect.bottom = source->format.display_area.bottom;
 
 		decoderParams.ulTargetHeight = (decoderParams.target_rect.bottom - decoderParams.target_rect.top);
 		decoderParams.ulTargetWidth = (decoderParams.target_rect.right - decoderParams.target_rect.left);

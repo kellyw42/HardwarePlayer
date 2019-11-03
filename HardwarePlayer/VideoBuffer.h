@@ -83,14 +83,14 @@ public:
 		fclose(file);
 	}
 
-	void Open(char* filename, progresshandler progress_handler)
+	void Open(VideoSource1* source)
 	{
 		decoder = new VideoDecoder();
 
-		CUVIDEOFORMAT format = decoder->OpenVideo(filename, progress_handler);
+		decoder->OpenVideo(source);
 
-		width = format.display_area.right - format.display_area.left;
-		height = (format.display_area.bottom - format.display_area.top);
+		width = source->format.display_area.right - source->format.display_area.left;
+		height = source->format.display_area.bottom - source->format.display_area.top;
 
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(width, height/2);
@@ -98,15 +98,15 @@ public:
 		decoder->Init();
 		decoder->Start();
 
-		sprintf(finish_filename, "%s.finishline", filename);
+		//sprintf(finish_filename, "%s.finishline", filename);
 
-		FILE *file = fopen(finish_filename, "r");
-		if (file != 0)
-		{
-			fscanf(file, "%f,%f", &top, &bottom);
-			fclose(file);
-		}
-		else
+		//FILE *file = fopen(finish_filename, "r");
+		//if (file != 0)
+		//{
+		//	fscanf(file, "%f,%f", &top, &bottom);
+		//	fclose(file);
+		//}
+		//else
 			top = bottom = -10;
 
 		videoConverter = new VideoConverter();

@@ -46,10 +46,11 @@ void CHECK(CUresult result)
 {
 	if (result != CUDA_SUCCESS)
 	{
-		char errorName[256], msg[256];
-		cuGetErrorName(result, (const char**)&errorName);
+		char msg[256];
+		const char* errorName = NULL;
+		cuGetErrorName(result, &errorName);
 		sprintf(msg, "WAK Error %d %s\n", result, errorName);
-		MessageBoxA(NULL, msg, "CUDA error", MB_OK);
+ 		MessageBoxA(NULL, msg, "CUDA error", MB_OK);
 		exit(1);
 	}
 }
