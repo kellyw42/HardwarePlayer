@@ -32,7 +32,6 @@
     <ClInclude Include="nvcuvid.h" />
     <ClInclude Include="VideoDecoder.h" />
     <ClInclude Include="VideoFrame.h" />
-    <ClInclude Include="VideoIndex.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

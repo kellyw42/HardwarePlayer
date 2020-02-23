@@ -18,15 +18,13 @@ namespace PhotoFinish.Views
 {
     public partial class Upload : UserControl, INotifyPropertyChanged
     {
-        private string name;
+        public string name, dstFilename;
 
         public Upload(string name, DateTime date)
         {
             ProgressHandler = new progresshandler(updateprogress);
-
             this.date = date;
             this.name = name;
-            CancelCommand = new DelegateCommand(Cancel);
             UploadCommand = new DelegateCommand(UploadFilesNow);
             Files = new ObservableCollection<VideoFile>();
             UploadedFiles = new ObservableCollection<string>();
@@ -38,12 +36,13 @@ namespace PhotoFinish.Views
                 string StreamFolder = drive.RootDirectory + @"PRIVATE\AVCHD\BDMV\STREAM\";
                 if (drive.IsReady && drive.DriveType == DriveType.Removable && System.IO.Directory.Exists(StreamFolder))
                 {
-                    if (this.name == "Start" && drive.TotalSize < 20000000000)
+                    if (this.name == "Start" && drive.VolumeLabel == "Start")
+
                     {
                         this.driveInfo = drive;
                         this.streamFolder = StreamFolder;
                     }
-                    if (this.name == "Finish" && drive.TotalSize > 20000000000)
+                    if (this.name == "Finish" && drive.VolumeLabel == "Finish")
                     {
                         this.driveInfo = drive;
                         this.streamFolder = StreamFolder;
@@ -56,7 +55,6 @@ namespace PhotoFinish.Views
             if (driveInfo != null)
             {
                 this.Title.Content = name + "\t(" + driveInfo.Name + ")";
-
                 UpdateFileList();
                 this.Loaded += UploadVideos_Loaded;
             }
@@ -72,23 +70,7 @@ namespace PhotoFinish.Views
         public ObservableCollection<VideoFile> Files { get; set; }
         public ObservableCollection<string> UploadedFiles { get; set; }
 
-        public ICommand CancelCommand { get; set; }
         public ICommand UploadCommand { get; set; }
-
-        private string status;
-        public string Status
-        {
-            get
-            {
-                return status;
-            }
-            set
-            {
-                status = value;
-                RaisePropertyChanged("Status");
-            }
-        }
-
 
         private string remaining0;
         public string Remaining0
@@ -154,8 +136,8 @@ namespace PhotoFinish.Views
 
         private void UploadVideos_Loaded(object sender, RoutedEventArgs e)
         {
-            if (!weird)
-                UploadFilesNow();
+            //if (!weird)
+            //    UploadFilesNow();
         }
 
         public string directory()
@@ -286,12 +268,6 @@ namespace PhotoFinish.Views
                 }
         }
 
-        async private void Cancel()
-        {
-            Status = "Cancel in progress ..";
-            Status = "Operation Cancelled.";
-        }
-
         private progresshandler ProgressHandler;
 
         void updateprogress(int thread, long completed, long total, string units)
@@ -327,28 +303,26 @@ namespace PhotoFinish.Views
 
         void UploadFilesNow()
         {
-            Status = "Upload in progress ...";
-
             Task.Run(() =>
             {
                 var files = new List<string>();
 
-                string filename = null;
-
+                ulong totalSize = 0;
                 foreach (var file in Files)
                     if (file.Upload)
                     {
-                        if (filename == null)
-                            filename = @"Track1-" + name + "-" + file.info.CreationTime.ToString("HH-mm-ss") + ".video";
+                        if (dstFilename == null)
+                            dstFilename = directory() + @"Track1-" + name + "-" + file.info.CreationTime.ToString("HH-mm-ss") + ".video";
                         files.Add(file.info.FullName);
+                        totalSize += (ulong)file.info.Length;
                     }
 
-                UploadedFiles.Add(filename);
+                UploadedFiles.Add(dstFilename);
                 Sort(UploadedFiles);
 
                 var which = (name == "Start") ? 0 : 1;
 
-                NativeVideo.OpenCardVideo(directory() + filename, directory(), which, files.ToArray(), files.Count, (1UL << 31), ProgressHandler);
+                NativeVideo.OpenCardVideo(dstFilename, which, files.ToArray(), files.Count, totalSize, ProgressHandler);
             });
         }
     }

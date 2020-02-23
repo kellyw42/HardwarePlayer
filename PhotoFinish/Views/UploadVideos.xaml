@@ -4,13 +4,19 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         WindowStartupLocation="CenterScreen"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}"
         xmlns:local="clr-namespace:PhotoFinish.Views"
         mc:Ignorable="d"
         Title="UploadVideos" Height="1000" Width="1600">
     <Grid x:Name="MyGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Button FontSize="32" Background="LightBlue" Content="Upload" Grid.Row="0" Grid.ColumnSpan="2" Grid.Column="0" Command="{Binding Path=UploadCommand}"/>
     </Grid>
 </Window>

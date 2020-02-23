@@ -10,20 +10,21 @@ public:
 		InitializeCriticalSection(&oCriticalSection_);
 		memset(aDisplayQueue_, 0, cnMaximumSize * sizeof(CUVIDPARSERDISPINFO));
 		memset((void *)aIsFrameInUse_, 0, cnMaximumSize * sizeof(bool));
-		stopped = false;
+		paused = false;
 	}
 
-	virtual ~FrameQueue()
+	~FrameQueue()
 	{
+		Pause();
 		DeleteCriticalSection(&oCriticalSection_);
 	}
 
 	void enqueue(const CUVIDPARSERDISPINFO *pPicParams)
 	{
-		Trace2("\t\t\taIsFrameInUse_[%d] = true;", pPicParams->picture_index);
+		//Trace2("\t\t\taIsFrameInUse_[%d] = true;", pPicParams->picture_index);
 		aIsFrameInUse_[pPicParams->picture_index] = true;
 		
-		while (!stopped)
+		while (!paused)
 		{
 			bool bPlacedFrame = false;
 			EnterCriticalSection(&oCriticalSection_);
@@ -31,7 +32,7 @@ public:
 			if (nFramesInQueue_ < (int)FrameQueue::cnMaximumSize)
 			{
 				int iWritePosition = (nReadPosition_ + nFramesInQueue_) % cnMaximumSize;
-				Trace2("write posn %d", iWritePosition);
+				//Trace2("write posn %d", iWritePosition);
 				aDisplayQueue_[iWritePosition] = *pPicParams;
 				nFramesInQueue_++;
 				bPlacedFrame = true;
@@ -79,19 +80,19 @@ public:
 
 	void releaseFrame(int nPictureIndex)
 	{
-		Trace2("\t\t\treleaseFrame[%d]", nPictureIndex);
+		//Trace2("\t\t\treleaseFrame[%d]", nPictureIndex);
 		aIsFrameInUse_[nPictureIndex] = false;
 	}
 
 	void waitUntilFrameAvailable(int nPictureIndex)
 	{
-		while (aIsFrameInUse_[nPictureIndex] && !stopped)
+		while (aIsFrameInUse_[nPictureIndex] && !paused)
 			Sleep(1);
 	}
 
-	void Stop()
+	void Pause()
 	{
-		stopped = true;
+		paused = true;
 	}
 
 	void Start()
@@ -100,11 +101,11 @@ public:
 			releaseFrame(i);
 
 		nReadPosition_ = nFramesInQueue_ = 0;
-		stopped = false;
+		paused = false;
 	}
 
 private:
-	bool stopped;
+	bool paused;
 	CRITICAL_SECTION    oCriticalSection_;
 	volatile int        nReadPosition_;
 	volatile int        nFramesInQueue_;

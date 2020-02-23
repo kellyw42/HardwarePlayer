@@ -38,11 +38,7 @@
             </ListView.View>
         </ListView>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="2">
-            <Button Content="Upload"  Padding="10,3,10,3" Margin="3,3,3,3" Command="{Binding UploadCommand}"/>
-            <Button Content="Cancel"  Padding="10,3,10,3" Margin="3,3,3,3" Command="{Binding CancelCommand}"/>
-            <Label  Content="{Binding Status}"  Width="620" BorderThickness="1" BorderBrush="Gray"  Padding="3,3,3,3" Margin="3,3,3,3"/>
-        </StackPanel>
+        <StackPanel Orientation="Horizontal" Grid.Row="2"/>
 
         <Grid Grid.Row="3">
             <ProgressBar x:Name="ProgressBar0" Minimum="0"/>

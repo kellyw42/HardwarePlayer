@@ -3,7 +3,8 @@
 class H264Parser
 {
 private:
-	uint8_t PES_video[1000000], PES_audio[1000000];
+	uint8_t *video_buffer_start, *video_packet_start;
+	uint8_t *audio_buffer_start, *audio_packet_start;
 	long videoPacketNr = 0, audioPacketNr = 0;
 	long videoLastPacket = -1, audioLastPacket = -1;
 	long videoClientPos = 0, audioClientPos = 0;
@@ -15,14 +16,25 @@ private:
 	CUVIDEOFORMAT format;
 	SDCardReader* reader;
 	progresshandler progress_handler;
+	size_t totalSize;
 
 public:
-	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename, CUVIDEOFORMAT format)
+	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename, CUVIDEOFORMAT format, size_t totalSize)
 	{
 		this->reader = reader;
 		this->progress_handler = progress_handler;
 		this->destVideoFilename = destVideoFilename;
 		this->format = format;
+		this->totalSize = totalSize;
+	}
+
+	~H264Parser()
+	{
+		CloseHandle(more_audiopackets_ready);
+		CloseHandle(more_videopackets_ready);
+
+		delete[] video_buffer_start;
+		delete[] audio_buffer_start;
 	}
 
 private:
@@ -34,70 +46,48 @@ private:
 	}
 
 public:
-	void StartThread()
+	HANDLE StartThread()
 	{
 		more_audiopackets_ready = CreateEvent(0, FALSE, FALSE, 0);
 		more_videopackets_ready = CreateEvent(0, FALSE, FALSE, 0);
-		CreateThread(0, 0, ParseThreadProc, this, 0, 0);
-	}
-
-	CUVIDSOURCEDATAPACKET *getNextVideoPacket()
-	{
-		if (videoClientPos < videoPacketNr)
-		{
-			if (videoClientPos % 1000 == 0)
-				progress_handler(3, videoClientPos, videoPacketNr, "video packets written");
-			return &videoPackets[videoClientPos++];
-		}
-
-		if (videoLastPacket > 0 && videoClientPos >= videoLastPacket)
-		{
-			progress_handler(3, videoClientPos, videoLastPacket, "video packets written");
-			return NULL;
-		}
-
-		videoWaiting = true;
-		WaitForSingleObject(more_videopackets_ready, INFINITE);
-		videoWaiting = false;
-
-		return getNextVideoPacket();
+		return CreateThread(0, 0, ParseThreadProc, this, 0, 0);
 	}
 
 	AVPacket *getNextAudioPacket()
 	{
-		if (audioClientPos < audioPacketNr)
+		while (true)
 		{
-			if (audioClientPos % 1000 == 0)
-				progress_handler(2, audioClientPos, audioPacketNr, "audio packets");
-			return &audioPackets[audioClientPos++];
-		}
-		if (audioLastPacket > 0 && audioClientPos >= audioLastPacket)
-		{
-			progress_handler(2, audioClientPos, audioLastPacket, "audio packets");
-			return NULL;
-		}
+			if (audioClientPos < audioPacketNr)
+			{
+				if (audioClientPos % 10000 == 0)
+					progress_handler(2, audioClientPos, audioPacketNr, "audio packets");
+				return &audioPackets[audioClientPos++];
+			}
+			if (audioLastPacket > 0 && audioClientPos >= audioLastPacket)
+			{
+				progress_handler(2, audioClientPos, audioLastPacket, "audio packets");
+				return NULL;
+			}
 
-		audioWaiting = true;
-		WaitForSingleObject(more_audiopackets_ready, INFINITE);
-		audioWaiting = false;
-
-		return getNextAudioPacket();
+			audioWaiting = true;
+			WaitForSingleObject(more_audiopackets_ready, INFINITE);
+			audioWaiting = false;
+		}
 	}
 
 private:
 
-	void GenerateVideoPacket(const uint8_t* payload, unsigned long size, CUvideotimestamp PTS)
+	void GenerateVideoPacket(unsigned long size, CUvideotimestamp PTS)
 	{
 		CUVIDSOURCEDATAPACKET *packet = &videoPackets[videoPacketNr];
-		uint8_t* buffer = (uint8_t*)malloc(size);
-		memcpy(buffer, payload, size);
-		packet->payload = buffer;
+		packet->payload = video_packet_start;
 		packet->payload_size = size;
 		packet->flags = CUVID_PKT_TIMESTAMP;
 		packet->timestamp = PTS;
-		printf("%ld: GenerateVideoPacket(file=%s, size=%ld PTS=%lld)\n", videoPacketNr, reader->filenames[0], size, PTS);
 
-		if (!payload || size == 0)
+		video_packet_start += size;
+
+		if (size == 0)
 			packet->flags |= CUVID_PKT_ENDOFSTREAM;
 
 		videoPacketNr++;
@@ -106,17 +96,17 @@ private:
 			SetEvent(more_videopackets_ready);
 	}
 
-	void GenerateAudioPacket(const uint8_t* payload, unsigned long size, CUvideotimestamp PTS)
+	void GenerateAudioPacket(unsigned long size, CUvideotimestamp PTS)
 	{
 		AVPacket *packet = &audioPackets[audioPacketNr];
-		uint8_t* buffer = (uint8_t*)malloc(size);
-		memcpy(buffer, payload, size);
-		packet->data = buffer;
+		packet->data = audio_packet_start;
 		packet->size = size;
 		packet->dts = packet->pts = PTS;
 		packet->duration = 2880;
 		packet->flags = 1;
 		packet->stream_index = 1;
+
+		audio_packet_start += size;
 
 		audioPacketNr++;
 
@@ -128,18 +118,12 @@ private:
 	{
 		FILE *file;
 		fopen_s(&file, destVideoFilename, "wb");
+		if (file == NULL) MessageBoxA(NULL, destVideoFilename, "Error: cannot open file", MB_OK);
 
 		fwrite(&format, sizeof(format), 1, file);
-
 		fwrite(&videoLastPacket, sizeof(videoLastPacket), 1, file);
 		fwrite(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
-
-		for (int i = 0; i < videoLastPacket; i++)
-		{
-			fwrite(videoPackets[i].payload, 1, videoPackets[i].payload_size, file);
-			if (i % 1000 == 0)
-				progress_handler(3, i, videoPacketNr, "video packets written");
-		}
+		fwrite(video_buffer_start, 1, video_packet_start - video_buffer_start, file);
 
 		fclose(file);
 		progress_handler(3, videoLastPacket, videoLastPacket, "video packets written");
@@ -147,6 +131,9 @@ private:
 
 	void ParseThreadMethod()
 	{
+		video_buffer_start = video_packet_start = new uint8_t[totalSize];
+		audio_buffer_start = audio_packet_start = new uint8_t[1024000000];
+
 		unsigned long video_packet_length = 0, audio_packet_length = 0;
 		CUvideotimestamp video_PTS, audio_PTS;
 
@@ -190,7 +177,7 @@ private:
 					{
 						if (video_packet_length > 0)
 						{
-							GenerateVideoPacket(PES_video, video_packet_length, video_PTS);
+							GenerateVideoPacket(video_packet_length, video_PTS);
 							video_packet_length = 0;
 						}
 
@@ -202,11 +189,10 @@ private:
 						int64_t item14 = (buffer[14] << 8 | buffer[15]) >> 1;
 						int64_t item16 = (buffer[16] << 8 | buffer[17]) >> 1;
 						video_PTS = (item13 << 30) | (item14 << 15) | item16;
-						printf("video_PTS=%lld\n", video_PTS);
+						//printf("video_PTS=%lld\n", video_PTS);
 					}
 
-					memcpy(PES_video + video_packet_length, buffer + pos, 188 - pos);
-
+					memcpy(this->video_packet_start + video_packet_length, buffer + pos, 188 - pos);
 					video_packet_length += 188 - pos;
 				}
 				else if (pid == 0x1100)
@@ -215,7 +201,7 @@ private:
 					{
 						if (audio_packet_length > 0)
 						{
-							GenerateAudioPacket(PES_audio, audio_packet_length, audio_PTS);
+							GenerateAudioPacket(audio_packet_length, audio_PTS);
 							audio_packet_length = 0;
 						}
 
@@ -229,16 +215,15 @@ private:
 						audio_PTS = (item13 << 30) | (item14 << 15) | item16;
 					}
 
-					memcpy(PES_audio + audio_packet_length, buffer + pos, 188 - pos);
-
+					memcpy(audio_packet_start + audio_packet_length, buffer + pos, 188 - pos);
 					audio_packet_length += 188 - pos;
 				}
 			}
 		}
-		GenerateAudioPacket(PES_audio, audio_packet_length, audio_PTS);
+		GenerateAudioPacket(audio_packet_length, audio_PTS);
 
-		GenerateVideoPacket(PES_video, video_packet_length, video_PTS);
-		GenerateVideoPacket(0, 0, 0);
+		GenerateVideoPacket(video_packet_length, video_PTS);
+		GenerateVideoPacket(0, 0);
 
 		videoLastPacket = videoPacketNr;
 		SetEvent(more_videopackets_ready);

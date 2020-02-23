@@ -44,10 +44,6 @@
                 <MenuItem Header="_Heats"  Padding="12,2,12,2">
                     <MenuItem Header="_Upload" Command="{Binding UploadHeatsCommand}"/>
                 </MenuItem>
-                <MenuItem Header="_Sync" Padding="12,2,12,2">
-                    <MenuItem Header="_Find" Command="{Binding FindSyncCommand}"/>
-                    <MenuItem Header="_Add"   Command="{Binding AddSyncCommand}"/>
-                </MenuItem>
                 <MenuItem Header="_Upload" Padding="12,2,12,2" Command="{Binding UploadVideoCommand}">
                 </MenuItem>
                 <MenuItem Header="View _Start" Padding="12,2,12,2" Command="{Binding ViewStartCommand}">
@@ -81,14 +77,20 @@
             </ListView.ContextMenu>
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Width="Auto" Header="Number" DisplayMemberBinding="{Binding Heat.Number}"/>
+                    <GridViewColumn Width="70" Header="Number" DisplayMemberBinding="{Binding Heat.Number}"/>
                     <GridViewColumn Width="110" Header="Start Time" DisplayMemberBinding="{Binding Race.StartTime}"/>
-                    <GridViewColumn Width="Auto" Header="Distance" DisplayMemberBinding="{Binding Distance}"/>
-                    <GridViewColumn Width="Auto" Header="Finish Times" DisplayMemberBinding="{Binding Race.TimeCount}"/>
-                    <GridViewColumn Width="Auto" Header="Athletes" DisplayMemberBinding="{Binding Heat.AthleteCount}"/>
-                    <GridViewColumn Width="300" Header="Ages" DisplayMemberBinding="{Binding Heat.Ages}"/>
+                    <GridViewColumn Width="150" Header="Distance" DisplayMemberBinding="{Binding Distance}"/>
+                    <GridViewColumn Width="110" Header="Finish Times" DisplayMemberBinding="{Binding Race.TimeCount}"/>
+                    <GridViewColumn Width="80" Header="Athletes" DisplayMemberBinding="{Binding Heat.AthleteCount}"/>
+                    <GridViewColumn Width="400" Header="Ages" DisplayMemberBinding="{Binding Heat.Ages}"/>
                 </GridView>
             </ListView.View>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
+                    <Setter Property="Background" Value="{Binding Brush}"/>
+                </Style>
+            </ListView.ItemContainerStyle>
         </ListView>
 
         <!-- Heat best times -->
@@ -174,8 +176,8 @@
                                     <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="2,2,0,0">
                                         <Border BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,0,2,2">
                                             <StackPanel Orientation="Horizontal" Background="{Binding Matched}">
-                                                <Label Content="{Binding Number}" Width="55" />
-                                                <Label Content="{Binding Name}"  Width ="240" />
+                                                <Label Content="{Binding Number}" Width="60" />
+                                                <Label Content="{Binding Name}"  Width ="350" />
                                                 <Label Content="{Binding FinishTime}" Foreground="{Binding Improvement}" Width ="200" HorizontalContentAlignment="Right"/>
                                                 <Label Content="{Binding AgeGroup}" />
                                             </StackPanel>

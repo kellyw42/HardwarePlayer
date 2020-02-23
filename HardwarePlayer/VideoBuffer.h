@@ -46,7 +46,8 @@ private:
 		VideoFrame *topField = CreateFrameFor(frameInfo.timestamp);
 		VideoFrame *bottomField = CreateFrameFor(frameInfo.timestamp + TIME_PER_FIELD);
 
-		videoConverter->ConvertFields(decoder->decoder, width, height, frameInfo, topField, bottomField, search ? &searchRect : NULL);
+		videoConverter->ConvertFields(decoder->decoder, width, height, frameInfo, 
+			topField, bottomField, search ? &searchRect : NULL, top, bottom, searchRect);
 
 		decoder->releaseFrame(&frameInfo);
 		return topField;
@@ -65,7 +66,7 @@ private:
 	}
 
 public:
-	CUvideotimestamp firstPts, displayed;
+	CUvideotimestamp displayed;
 	float top, bottom;
 	RECT searchRect;
 	int width, height;
@@ -79,6 +80,7 @@ public:
 	void SaveFinishLine()
 	{
 		FILE *file = fopen(finish_filename, "w");
+		if (file == NULL) MessageBoxA(NULL, finish_filename, "Error: cannot open file", MB_OK);
 		fprintf(file, "%f,%f\n", top, bottom);
 		fclose(file);
 	}
@@ -98,15 +100,15 @@ public:
 		decoder->Init();
 		decoder->Start();
 
-		//sprintf(finish_filename, "%s.finishline", filename);
+		sprintf(finish_filename, "%.55s.MTS.finishline", source->videoFilename);
 
-		//FILE *file = fopen(finish_filename, "r");
-		//if (file != 0)
-		//{
-		//	fscanf(file, "%f,%f", &top, &bottom);
-		//	fclose(file);
-		//}
-		//else
+		FILE *file = fopen(finish_filename, "r");
+		if (file != 0)
+		{
+			fscanf(file, "%f,%f", &top, &bottom);
+			fclose(file);
+		}
+		else
 			top = bottom = -10;
 
 		videoConverter = new VideoConverter();
@@ -114,17 +116,18 @@ public:
 		//return FirstFrame();
 	}
 
-	VideoFrame* FirstFrame()
+	~VideoBuffer()
 	{
-		VideoFrame* firstFrame = ConvertNextFrame(NULL);
-		firstPts = firstFrame->pts;
-		return firstFrame;
+		delete decoder;
+		delete videoConverter;
+		for (int i = 0; i < NumFrames; i++)
+			delete frames[i];
 	}
 
 	VideoFrame * GotoTime(CUvideotimestamp targetPts)
 	{
-		if (targetPts < firstPts)
-			targetPts = firstPts;
+		if (targetPts < 93600)
+			targetPts = 93600;
 
 		VideoFrame *cached = GetFrame(targetPts);
 		if (cached != NULL)
@@ -172,12 +175,12 @@ public:
 	{
 		displayed = pts;
 		if (time_handler)
-			time_handler(firstPts, pts);
+			time_handler(pts);
 	}
 
-	void InputEvent(int keyDown)
+	void InputEvent(int keyDown, int wm_keydown)
 	{
 		if (event_handler)
-			event_handler(keyDown);
+			event_handler(keyDown, wm_keydown);
 	}
 };

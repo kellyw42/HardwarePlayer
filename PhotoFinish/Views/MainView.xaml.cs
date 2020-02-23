@@ -19,6 +19,12 @@ namespace PhotoFinish.Views
             get { return (Meet)DataContext;  }
         }
 
+        protected override void OnPreviewKeyUp(KeyEventArgs e)
+        {
+            if (e.Key == Key.Right)
+                meet.StopRepeatRight();
+        }
+
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             switch (e.Key)
@@ -47,7 +53,7 @@ namespace PhotoFinish.Views
                     e.Handled = true;
                     return;
                 case Key.Right:
-                    meet.NextFrameCommand.Execute(null);
+                    meet.AutoRepeatRight();
                     e.Handled = true;
                     return;
                 case Key.Space:
@@ -81,6 +87,15 @@ namespace PhotoFinish.Views
             var label = (Label)e.Source;
             var time = (TimeStamp)label.Tag;
             meet.GotoFinishTimeCommand.Execute(time);
+        }
+
+        private void ListViewItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var item = sender as ListViewItem;
+            if (item != null && item.IsSelected)
+            {
+                meet.RaceChanged();
+            }
         }
     }
 }

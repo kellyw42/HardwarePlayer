@@ -15,7 +15,6 @@ namespace PhotoFinish
         public event PropertyChangedEventHandler PropertyChanged;
 
         public Race race { get; set; }
-        public long start { get; set; }
         public long pts { get; set; }
         public string filename { get; set; }
 
@@ -89,7 +88,7 @@ namespace PhotoFinish
         {
             get
             {
-                return Span(pts - race.StartTime.pts - race.sync);
+                return Span(pts - race.CorrespondingFinishTime(race.StartTime.pts));
             }
         }
 
@@ -107,7 +106,6 @@ namespace PhotoFinish
             this.meet = old.meet;
             this.pts = old.pts;
             this.race = old.race;
-            this.start = old.start;
             this.filename = old.filename;
         }
 
@@ -116,11 +114,10 @@ namespace PhotoFinish
             this.meet = meet;
         }
 
-        public TimeStamp(Meet meet, Race race, long start, long pts, string filename)
+        public TimeStamp(Meet meet, Race race, long pts, string filename)
         {
             this.meet = meet;
             this.race = race;
-            this.start = start;
             this.pts = pts;
             this.filename = filename;
         }
@@ -147,7 +144,7 @@ namespace PhotoFinish
 
         public TimeSpan ToTime()
         { 
-            Match m = Regex.Match(filename, @"Track(\d)-(Start|Finish)-(\d+)-(\d+)-(\d+).MTS");
+            Match m = Regex.Match(filename, @"Track(\d)-(Start|Finish)-(\d+)-(\d+)-(\d+).");
             if (m.Success)
             {
                 var track = int.Parse(m.Groups[1].Value);
@@ -160,7 +157,7 @@ namespace PhotoFinish
 
                 var time = new System.TimeSpan(hours, minutes, seconds);
 
-                time = time.Add(Span((long)(pts - start)));
+                time = time.Add(Span((long)(pts - 93600)));
 
                 return time;
             }

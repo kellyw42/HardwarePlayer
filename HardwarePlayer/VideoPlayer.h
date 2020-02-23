@@ -1,8 +1,26 @@
 enum Mode { PLAYING, PAUSED, REWINDING, SEARCHING };
 
+using namespace std::chrono;
+
 bool drawing = false;
 int speed;
 Mode mode = PAUSED;
+
+void busyWait(int milliseconds)
+{
+	auto start = high_resolution_clock::now();
+	while (true)
+	{
+		auto now = high_resolution_clock::now();
+		duration<double> seconds = now - start;
+		if (seconds.count()*1000 >= milliseconds)
+			return;
+	}
+}
+
+int delay = 10;
+
+bool crossing = false;
 
 void Render()
 {
@@ -13,16 +31,26 @@ void Render()
 			VideoFrame *frame;
 			if (speed == 1)
 			{
-				StartTime(4);
-				frame = videoBuffer->SkipFrames(2);
-				EndTime(4);
+				frame = videoBuffer->NextFrame(0);
+				Sleep(delay);
+				if (crossing)
+				{
+					if (frame->hits == 0)
+						crossing = false;
+				}
+				else
+				{
+					if (frame->hits > 0)
+					{
+						mode = Mode::PAUSED;
+						crossing = true;
+					}
+				}
 			}
 			else
 				frame = videoBuffer->FastForwardImage(speed);
 
-			StartTime(5);
 			RenderFrame(frame);
-			EndTime(5);
 
 			break;
 		}
@@ -55,16 +83,15 @@ void Render()
 	}
 }
 
-void Play()
+void DoPlay()
 {
 	speed = 1;
 	mode = PLAYING;
 }
 
-void Pause()
+void DoPause()
 {
 	mode = PAUSED;
-	recording = false;
 	DisplayAverages();
 }
 
@@ -94,14 +121,12 @@ void FastRewind()
 
 void UpCommand()
 {
-	videoBuffer->Up();
-	RenderFrame(videoBuffer->GotoTime(39609000));
+	delay++;
 }
 
 void DownCommand()
 {
-	videoBuffer->Down();
-	RenderFrame(videoBuffer->GotoTime(39609000));
+	delay--;
 }
 
 void StepNextFrame()
@@ -120,15 +145,15 @@ void StepPrevFrame()
 		mode = PAUSED;
 }
 
-void Search(VideoBuffer *startBuffer, VideoBuffer *finishBuffer)
+void Search(VideoBuffer *startBuffer, CUvideotimestamp pts)
 {
 	mode = Mode::SEARCHING;
-	if (videoBuffer == finishBuffer)
+	if (videoBuffer != startBuffer)
 	{
+		prevLuminance = MAXLONGLONG;
 		videoBuffer = startBuffer;
-		RenderFrame(startBuffer->GotoTime(startBuffer->firstPts + finishBuffer->displayed - finishBuffer->firstPts));
+		RenderFrame(startBuffer->GotoTime(pts));
 	}
-		// Fixme: plus sync???
 }
 
 void EventLoop()
@@ -137,15 +162,12 @@ void EventLoop()
 
 	while (1)
 	{
-		if (mode == Mode::PLAYING)
-			recording = true;
-
-		StartTime(0);
+		//StartTime(0);
 		while (true)
 		{	
-			StartTime(1);
+			//StartTime(1);
 			BOOL messageWaiting = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
-			EndTime(1);
+			//EndTime(1);
 
 			if (!messageWaiting)
 				break;
@@ -166,19 +188,37 @@ void EventLoop()
 						videoBuffer->Open(source);
 						break;
 					}
+					case  Messages::CLOSE:
+					{
+						videoBuffer = (VideoBuffer*)msg.wParam;
+						delete videoBuffer;
+						break;
+					}
 					case  Messages::GOTO:
 					{
+						SetActiveWindow(hwnd);
+						SetFocus(hwnd);
 						videoBuffer = (VideoBuffer*)msg.wParam;
 						CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
 						RenderFrame(videoBuffer->GotoTime(pts));
 						break;
 					}
+					case  Messages::PAUSE:
+					{
+						DoPause();
+						break;
+					}
+					case  Messages::PLAY:
+					{
+						DoPlay();
+						break;
+					}
 					case  Messages::PLAYPAUSE:
 					{
 						if (mode == PAUSED)
-							Play();
+							DoPlay();
 						else
-							Pause();
+							DoPause();
 						break;
 					}
 					case  Messages::UP:
@@ -204,8 +244,8 @@ void EventLoop()
 					case Messages::VISUALSEARCH:
 					{
 						VideoBuffer* start = (VideoBuffer*)msg.wParam;
-						VideoBuffer* finish = (VideoBuffer*)msg.lParam;
-						Search(start, finish);
+						CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
+						Search(start, pts);
 						break;
 					}
 					case Messages::FASTFORWARD:
@@ -222,11 +262,11 @@ void EventLoop()
 			}
 		}
 
-		StartTime(2);
+		//StartTime(2);
 		Render();
-		EndTime(2);
+		//EndTime(2);
 
-		EndTime(0);
+		//EndTime(0);
 	}
 }
 
@@ -259,6 +299,9 @@ void DoneRectangle()
 
 void MoveLine(char direction)
 {
+	if (videoBuffer == NULL)
+		return;
+
 	if (videoBuffer->top == 0)
 		videoBuffer->top = videoBuffer->bottom = (float)display_width / 2;
 
@@ -294,6 +337,12 @@ int MouseEvent(UINT Msg, LPARAM lParam)
 	}
 }
 
+int Keyup(WPARAM wParam, LPARAM lParam)
+{
+	if (videoBuffer) videoBuffer->InputEvent((int)wParam, 0);
+	return 0;
+}
+
 int Keydown(WPARAM wParam, LPARAM lParam)
 {
 	switch (wParam)
@@ -307,7 +356,7 @@ int Keydown(WPARAM wParam, LPARAM lParam)
 		MoveLine((char)wParam);
 		return 0;
 	default:
-		videoBuffer->InputEvent((int)wParam);
+		if (videoBuffer) videoBuffer->InputEvent((int)wParam, 1);
 		return 0;
 	}
 }
@@ -316,6 +365,8 @@ LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
 {
 	switch (Msg)
 	{
+	case WM_KEYUP:
+		return Keyup(wParam, lParam);
 	case WM_KEYDOWN:
 		return Keydown(wParam, lParam);
 	case WM_LBUTTONDOWN:

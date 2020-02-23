@@ -1,58 +1,58 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using System.IO;
+using Prism.Commands;
 
 namespace PhotoFinish.Views
 {
     public partial class UploadVideos : Window
     {
         private ReportSync handler;
-        public double c0, c1;
-        public List<long> start_times = new List<long>();
+        public double video_c0, video_c1;
+        public long start_bang;
+        public Upload start, finish;
 
-        void DrawSync(int pos, long start_time, double c0, double c1)
+        void DrawSync(int done, long start_bang, double audio_c0, double audio_c1)
         {
-            if (pos < start_times.Count)
-                start_times[pos] = start_time;
-            else
-                start_times.Add(start_time);
+            this.video_c0 = (audio_c0 / 48000.0) * TimeStamp.FRAMES_PER_SECOND * TimeStamp.PTS_PER_FRAME;
+            this.video_c1 = audio_c1;
+            this.start_bang = start_bang;
 
-            this.c0 = c0;
-            this.c1 = c1;
+            Dispatcher.Invoke(() =>
+            {
+                this.Title = "Done = " + done + ", start_bang = " + start_bang + ", sync = " + (video_c1 * 1000000).ToString("F2") + " x + " + video_c0.ToString("F0");
+                if (done == 2)
+                    DialogResult = true;
+            });
+        }
 
-            var times = String.Join(", ", start_times.Select(time => (time/48000.0).ToString("0.00")));
+        public ICommand UploadCommand { get; set; }
 
-            Dispatcher.Invoke(() => 
-                this.Title = "start at " + times + " seconds, sync = " + (c1*1000000).ToString("F2") + " x + " + c0.ToString("F0"));
-
+        void UploadFilesNow()
+        {
+            start.UploadCommand.Execute(null);
+            finish.UploadCommand.Execute(null);
         }
 
         public UploadVideos(DateTime date)
         {
+            this.UploadCommand = new DelegateCommand(UploadFilesNow);
             this.handler = new ReportSync(DrawSync);
 
             InitializeComponent();
 
             NativeVideo.SyncAudio(handler);
 
-            var start = new Upload("Start", date);
-            var finish = new Upload("Finish", date);
+            start = new Upload("Start", date);
+            finish = new Upload("Finish", date);
 
             this.MyGrid.Children.Add(start);
             this.MyGrid.Children.Add(finish);
 
+            Grid.SetRow(start, 1);
             Grid.SetColumn(start, 0);
+            Grid.SetRow(finish, 1);
             Grid.SetColumn(finish, 1);
         }
     }

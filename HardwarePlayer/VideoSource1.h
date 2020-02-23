@@ -6,12 +6,12 @@ class VideoSource1
 {
 private:
 	FILE *file;
-	bool started, waiting;
+	bool paused, waiting, running;
 	HANDLE startEvent;
 	PFNVIDSOURCECALLBACK handleVideoData;
 	void *decoder;
-	char videoFilename[256];
 	long videoLastPacket;
+	uint8_t *start_buffer;
 	CUVIDSOURCEDATAPACKET *videoPackets;
 	long currentFrameNr;
 
@@ -23,20 +23,20 @@ private:
 
 	void Parse()
 	{
+		running = true;
 		waiting = false;
-
 		currentFrameNr = 0;
 
-		while (true)
+		while (running)
 		{
-			if (started)
-				handleVideoData(decoder, &videoPackets[currentFrameNr++]);
-			else
+			if (paused)
 			{
 				waiting = true;
 				WaitForSingleObject(startEvent, INFINITE);
 				waiting = false;
 			}
+			else
+				handleVideoData(decoder, &videoPackets[currentFrameNr++]);
 		}
 	}
 
@@ -44,18 +44,20 @@ private:
 #define BLOCK 0x3F
 
 public:
+	char *videoFilename;
 	CUVIDEOFORMAT format;
 
-	VideoSource1(char* MTSFilename, progresshandler progress_handler)
+	VideoSource1(char* videoFilename, progresshandler progress_handler)
 	{
-		MTSFilename[strlen(MTSFilename) - 4] = 0;
-		sprintf(videoFilename, "%s.video", MTSFilename);
+		this->videoFilename = _strdup(videoFilename);
 
 		fopen_s(&file, videoFilename, "rb");
+		if (file == NULL) MessageBoxA(NULL, videoFilename, "Error: cannot open file", MB_OK);
+
 		_fseeki64(file, 0, SEEK_END);
 		long long length = _ftelli64(file);
 		_fseeki64(file, 0, SEEK_SET);
-		uint8_t *buffer = new uint8_t[length];
+		uint8_t *buffer = start_buffer = new uint8_t[length];
 		long long total_read = 0;
 
 		while (total_read < length)
@@ -85,31 +87,45 @@ public:
 		progress_handler(2, 0, 0, "Done!");
 	}
 
+	~VideoSource1()
+	{
+		running = false;
+		if (waiting)
+		{
+			SetEvent(startEvent);
+			while (waiting)
+				Sleep(1);
+		}
+		CloseHandle(startEvent);
+		delete[] start_buffer;
+
+	}
+
 	void Attach(void *decoder, PFNVIDSOURCECALLBACK handleVideoData)
 	{
 		this->handleVideoData = handleVideoData;
 		this->decoder = decoder;
-		started = false;
+		paused = true;
 		startEvent = CreateEvent(NULL, true, false, NULL);
 		CreateThread(NULL, 0, Parse, this, 0, NULL);
 	}
 
 	void Start()
 	{
-		started = true;
+		paused = false;
 		SetEvent(startEvent);
 	}
 
-	void Stop()
+	void Pause()
 	{
-		started = false;
+		paused = true;
 		while (!waiting)
 			Sleep(1);
 	}
 
 	void Goto(CUvideotimestamp targetPts)
 	{
-		Stop();
+		Pause();
 
 		currentFrameNr = 13 * ((targetPts - 100800) / 46800);
 

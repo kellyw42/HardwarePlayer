@@ -3,6 +3,7 @@
 extern "C" __declspec(dllexport) void GetAudio(char* filename, float data[48000], int start)
 {
 	FILE *audioFile = fopen(filename, "rb");
+	if (audioFile == NULL) MessageBoxA(NULL, filename, "Error: cannot open file", MB_OK);
 	fseek(audioFile, start * sizeof(float), SEEK_SET);
 	fread(data, sizeof(float), 48000, audioFile);
 	fclose(audioFile);
@@ -27,6 +28,7 @@ DWORD WINAPI AudioSearchThread(LPVOID lpThreadParameter)
 	AudioData *data = (AudioData*)lpThreadParameter;
 
 	FILE *audioFile = fopen(data->filename, "rb");
+	if (audioFile == NULL) MessageBoxA(NULL, data->filename, "Error: cannot open file", MB_OK);
 
 	float *audioData = new float[BUFFERSIZE];
 
@@ -60,20 +62,20 @@ DWORD WINAPI AudioSearchThread(LPVOID lpThreadParameter)
 
 			if (time_since_long_silence < loud_period && volume > loud)
 			{
-				data->audio_handler(start);
+				data->audio_handler(start, 0);
 				silent_period = 0;
 				time_since_long_silence = 10000000;
 			}
 		}
 	}
-	data->audio_handler(-1);
+	data->audio_handler(-1, 0);
 	fclose(audioFile);
 	return 0;
 }
 
 extern "C" __declspec(dllexport) void AudioSearch(char* filename, eventhandler audio_handler)
 {
-	AudioData *data = (AudioData*)malloc(sizeof(AudioData));
+	AudioData *data = new AudioData();
 	data->filename = _strdup(filename);
 	data->audio_handler = audio_handler;
 	CreateThread(0, 0, AudioSearchThread, data, 0, 0);

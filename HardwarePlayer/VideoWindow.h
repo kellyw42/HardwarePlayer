@@ -62,7 +62,7 @@ void RenderFinishLine(float top, float bottom)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-	glLineWidth(10);
+	glLineWidth(10); // was 10
 	glColor3f(1.0f, 0.0f, 0.0f);
 	glBegin(GL_LINES);
 	glColor3f(1.0f, 0.0f, 0.0f);
@@ -99,12 +99,12 @@ int UpdateFrameRate()
 	high_resolution_clock::time_point now = high_resolution_clock::now();
 	duration<double> time_span = duration_cast<duration<double>>(now - start);
 
-	if (time_span.count() > 10)
+	if (time_span.count() > 2)
 	{
 		int result = frameCount;
 		frameCount = 0;
 		start = now;
-		return result/10;
+		return result/2;
 	}
 	else
 		return -1;
@@ -112,12 +112,12 @@ int UpdateFrameRate()
 
 void RenderFrame(VideoFrame *frame)
 {
-	Trace("RenderFrame(%ld);", frame->pts);
+	//Trace("RenderFrame(%ld)", frame->pts);
 	int rate = UpdateFrameRate();
 	if (rate > 0)
 	{
 		char msg[128];
-		sprintf(msg, "%d", rate);
+		sprintf(msg, "%d fps, frame %p, pts=%ld, hits=%d", rate, frame, frame->pts, frame->hits);
 		SetWindowTextA(hwnd, msg);
 	}
 
@@ -143,7 +143,7 @@ void RenderFrame(VideoFrame *frame)
 		glVertex2f(0, 1);
 	glEnd();
 
-	StartTime(6);
+	//StartTime(6);
 
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame->gl_pbo);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
@@ -172,7 +172,7 @@ void RenderFrame(VideoFrame *frame)
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
 
-	EndTime(6);
+	//EndTime(6);
 
 	RenderOverlay(frame);
 
@@ -180,9 +180,9 @@ void RenderFrame(VideoFrame *frame)
 
 	Trace("SwapBuffers(hdc)");
 
-	StartTime(7);
+	//StartTime(7);
 	SwapBuffers(hdc);
-	EndTime(7);
+	//EndTime(7);
 
 	glFinish();
 
@@ -190,10 +190,11 @@ void RenderFrame(VideoFrame *frame)
 	videoBuffer->TimeEvent(frame->pts);
 
 	{
-		char msg[128];
-		sprintf(msg, "PTS %lld %d", frame->pts, frame->field);
-		SetWindowTextA(hwnd, msg);
+		//char msg[128];
+		//sprintf(msg, "PTS %lld %d", frame->pts, frame->field);
+		//SetWindowTextA(hwnd, msg);
 	}
+	
 }
 
 LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);

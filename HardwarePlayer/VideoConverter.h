@@ -3,8 +3,9 @@
 class VideoConverter
 {
 private:
-	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance;
-	CUdeviceptr totalLuminance;
+	CUmodule colourConversionModule;
+	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance, FinishLine, FinishLine2;
+	CUdeviceptr totalLuminance, totalHits;
 
 	void  cudaLaunchNV12toGrayScaleDrv(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstARGB, size_t nDestPitch, int width, int height)
 	{
@@ -19,44 +20,73 @@ private:
 	{
 		dim3 block(32, 32, 1);
 		dim3 grid((width + (block.x - 1)) / block.x, (height + (block.y - 1)) / block.y, 1);
-		void *args[7] = { &d_srcNV12, &nSourcePitch, &d_dstTop, &d_dstBottom, &nDestPitch, &width, &height };
+		void *args[7] = { &d_srcNV12, &nSourcePitch, &d_dstTop, &d_dstBottom, &nDestPitch, &width, &height};
 
 		CHECK(cuLaunchKernel(NV12ToARGB, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
 	}
 
-	long long  cudaLaunchLuminance(CUdeviceptr d_srcNV12, size_t nSourcePitch, int width, int height, int left, int right, int top, int bottom)
+	int cudaLaunchFinishLine(CUdeviceptr d_dst, int width, int height, float top, float bottom, int y1, int y2)
+	{
+		void *args[8] = { &d_dst, &width, &height, &top, &bottom, &y1, &y2, &totalHits };
+		CHECK(cuLaunchKernel(FinishLine, 1, 1, 1, 1, 1, 1, 0, 0, args, 0));
+		int hostHits;
+		cuMemcpyDtoH(&hostHits, totalHits, sizeof(int));
+		return hostHits;
+	}
+
+	void cudaLaunchFinishLine2(CUdeviceptr d_dst, int width, int height, float top, float bottom, int y1, int y2)
+	{
+		dim3 block(32, 32, 1);
+		dim3 grid((width + (block.x - 1)) / block.x, (height + (block.y - 1)) / block.y, 1);
+		void *args[7] = { &d_dst, &width, &height, &top, &bottom, &y1, &y2};
+
+		CHECK(cuLaunchKernel(FinishLine2, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
+	}
+
+	void  cudaLaunchLuminance(long long *topLum, long long *bottomLum, CUdeviceptr d_srcNV12, size_t nSourcePitch, int width, int height, int left, int right, int top, int bottom)
 	{
 		void *args[7] = { &d_srcNV12, &nSourcePitch, &left, &right, &top, &bottom, &totalLuminance };
 
 		CHECK(cuLaunchKernel(Luminance, 1, 1, 1, 1, 1, 1, 0, 0, args, 0));
 
-		long long hostResult = 0;
-		cuMemcpyDtoH(&hostResult, totalLuminance, sizeof(long long));
-		return hostResult;
+		long long hostResult[2];
+		cuMemcpyDtoH(hostResult, totalLuminance, 2 * sizeof(long long));
+		*topLum = hostResult[0];
+		*bottomLum = hostResult[1];
 	}
 
 public:
 	VideoConverter()
 	{
-		CUmodule colourConversionModule;
 		CHECK(cuModuleLoad(&colourConversionModule, "C:\\Users\\kellyw\\Dropbox\\000000 AranaLA\\AAAAA\\HardwarePlayer\\HardwarePlayer\\ColourConversion.cubin"));
 
 		CHECK(cuModuleGetFunction(&NV12ToGrayScale, colourConversionModule, "NV12ToGrayScale"));
 		CHECK(cuModuleGetFunction(&NV12ToARGB, colourConversionModule, "NV12ToARGB"));
+		CHECK(cuModuleGetFunction(&FinishLine, colourConversionModule, "FinishLine"));
+		CHECK(cuModuleGetFunction(&FinishLine2, colourConversionModule, "FinishLine2"));
 		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
 
-		CHECK(cuMemAlloc(&totalLuminance, sizeof(long long)));
+		CHECK(cuMemAlloc(&totalLuminance, 2 * sizeof(long long)));
+		CHECK(cuMemAlloc(&totalHits, sizeof(int)));
+	}
+
+	~VideoConverter()
+	{
+		cuModuleUnload(colourConversionModule);
+		cuMemFree(totalLuminance);
+		cuMemFree(totalHits);
 	}
 
 	void DownloadFrame(CUvideotimestamp pts, CUdeviceptr device, unsigned int pitch, int width, int height)
 	{
-		uint32_t* host = (uint32_t*)malloc(height*pitch * sizeof(uint32_t));
+		uint32_t* host = new uint32_t[height*pitch];
 		cuMemcpyDtoH(host, device, height*pitch * sizeof(uint32_t));
 
 		char name[256];
 		sprintf(name, "image%d.ppm", pts);
 
 		FILE *file = fopen(name, "wb");
+		if (file == NULL) MessageBoxA(NULL, name, "Error: cannot open file", MB_OK);
 		fprintf(file, "P6\n%d %d\n255\n", width, height);
 		for (int row = 0; row < height; row++)
 		{
@@ -71,10 +101,11 @@ public:
 			}
 		}
 		fclose(file);
+		delete[] host;
 	}
 
-	long long ConvertFields(CUvideodecoder _decoder, int width, int height, CUVIDPARSERDISPINFO frameInfo, 
-		VideoFrame* topFrame, VideoFrame* bottomFrame, RECT *SearchRectangle)
+	void ConvertFields(CUvideodecoder _decoder, int width, int height, CUVIDPARSERDISPINFO frameInfo, 
+		VideoFrame* topFrame, VideoFrame* bottomFrame, RECT *SearchRectangle, float top, float bottom, RECT range)
 	{
 		//Trace2("ConvertField(decoder = %p)", _decoder);
 
@@ -100,8 +131,14 @@ public:
 
 		cudaLaunchNV12toARGBDrv(YUVFramePtr, YUVPitch, RGBTopPtr, RGBBottomPtr, width*4, width, height);
 
-		//if (SearchRectangle)
-		//	luminance = cudaLaunchLuminance(pDecodedFrame, decodePitch, width, height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
+		if (width > 1500)
+		{
+			topFrame->hits = cudaLaunchFinishLine(RGBTopPtr, width, height / 2, top, bottom, range.top/2, range.bottom/2);
+			bottomFrame->hits = cudaLaunchFinishLine(RGBBottomPtr, width, height / 2, top, bottom, range.top/2, range.bottom/2);
+		}
+
+		if (SearchRectangle)
+			cudaLaunchLuminance(&topFrame->luminance, &bottomFrame->luminance, YUVFramePtr, YUVPitch, width, height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
 
 		//DownloadFrame(topFrame->pts, RGBTopPtr, width, width, height);
 		//DownloadFrame(bottomFrame->pts, RGBBottomPtr, width, width, height);
@@ -109,7 +146,5 @@ public:
 		CHECK(cuGraphicsUnmapResources(2, resources, 0));
 
 		CHECK(cuvidUnmapVideoFrame(_decoder, YUVFramePtr));
-
-		return luminance;
 	}
 };

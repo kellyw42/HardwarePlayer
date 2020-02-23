@@ -72,12 +72,12 @@ static int Align(int i, int j)
 static void FindBestAlignment()
 {
 	int longest = 0;
-	int best_i, best_j;
-	for (int i = 0; i < 4 && i < finish_count && ToSeconds(finish_bangs[i]) < 60; i++)
+	int best_i = -1, best_j = -1;
+	for (int i = 0; i < 4 && i < finish_count && ToSeconds(finish_bangs[i]) < 60*15; i++)
 	{
 		if (ToSeconds(finish_bangs[i]) > 3)
 		{
-			for (int j = 0; j < 4 && j < start_count && ToSeconds(start_bangs[j]) < 60; j++)
+			for (int j = 0; j < 4 && j < start_count && ToSeconds(start_bangs[j]) < 60*15; j++)
 			{
 				if (ToSeconds(start_bangs[j]) > 3)
 				{
@@ -93,7 +93,8 @@ static void FindBestAlignment()
 		}
 	}
 
-	align_length = Align(best_i, best_j);
+	if (best_i >= 0 && best_j >= 0)
+		align_length = Align(best_i, best_j);
 }
 
 static void LinearFit()
@@ -142,8 +143,7 @@ static void LinearFit()
 		LinearFit();
 	}
 	else
-		for (int i = 0; i < align_length && ToSeconds(align_start[i]) < 60; i++)
-			report_sync(i, align_start[i], c0, c1);
+		report_sync(done_count, align_start[0], c0, c1);
 }
 
 static void Analyse()
@@ -159,10 +159,11 @@ static void Analyse()
 
 DWORD WINAPI SyncProc(LPVOID lpThreadParameter)
 {
+	align_length = 0;
 	HANDLE more_bangs[2] = { new_start_bang, new_finish_bang };
 
-	while (start_count < 10 || finish_count < 10);
-		WaitForMultipleObjects(2, more_bangs, false, INFINITE);
+	//while (start_count < 10 || finish_count < 10);
+	//	WaitForMultipleObjects(2, more_bangs, false, INFINITE);
 
 	while (true)
 	{ 

@@ -24,9 +24,9 @@ private:
 	}
 
 public:
-	void StartThread()
+	HANDLE StartThread()
 	{
-		CreateThread(0, 0, DecodeThreadProc, this, 0, 0);
+		return CreateThread(0, 0, DecodeThreadProc, this, 0, 0);
 	}
 
 	bool end_of_file = false;

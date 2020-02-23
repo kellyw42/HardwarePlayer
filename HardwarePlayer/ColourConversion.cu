@@ -117,12 +117,56 @@ extern "C" __global__ void NV12ToARGB(const unsigned char* srcImage, size_t nSou
 	dstImage[offset + 1] = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
 }
 
-extern "C" __global__ void Luminance(unsigned char *srcImage, size_t nSourcePitch, int left, int right, int top, int bottom, long long *result)
+extern "C" __global__ void FinishLine2(unsigned int* dstImage, unsigned int width, unsigned int height, float top, float bottom, int y1, int y2)
 {
-	long long total = 0;
+	const int x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= width || x < bottom || y < y1 || y > y2)
+		return;
+
+	float dy = ((float)y) / height;
+	int copyx = dy * bottom + (1 - dy) * top;
+	int src = dstImage[y * width + copyx];
+	int R = ((src >> 16) & 0xFF) - 180;
+	int G = ((src >> 8) & 0xFF) - 73;
+	int B = ((src >> 0) & 0xFF) - 100;
+	float diff = (R * R + G * G + B * B);
+	if (diff < 2000)
+		dstImage[y * width + x] = 0xFF000000;
+	else
+		dstImage[y * width + x] = 0xFFFFFFFF;
+}
+
+extern "C" __global__ void FinishLine(unsigned int* dstImage, unsigned int width, unsigned int height, float top, float bottom, int y1, int y2, int*hits)
+{
+	int total = 0;
+	for (int y = y1; y < y2; y++)
+	{
+		float dy = ((float)y) / height;
+		int copyx = dy * bottom + (1 - dy) * top;
+		int src = dstImage[y * width + copyx];
+		int R = ((src >> 16) & 0xFF) - 180;
+		int G = ((src >> 8) & 0xFF) - 73;
+		int B = ((src >> 0) & 0xFF) - 100;
+		float diff = (R * R + G * G + B * B);
+		if (diff < 2000)
+			total++;
+	}
+	*hits = total;
+}
+
+
+extern "C" __global__ void Luminance(unsigned char *srcImage, size_t nSourcePitch, int left, int right, int top, int bottom, long long *lum)
+{
+	long long topLum = 0, bottomLum = 0;
 	for (int x = left; x <= right; x++)
 		for (int y = top; y <= bottom; y++)
-			total += srcImage[y * nSourcePitch + x];
-	*result = total;
+			if (y & 1)
+				bottomLum += srcImage[y * nSourcePitch + x];
+			else
+				topLum += srcImage[y * nSourcePitch + x];
+	lum[0] = topLum;
+	lum[1] = bottomLum;
 }
 

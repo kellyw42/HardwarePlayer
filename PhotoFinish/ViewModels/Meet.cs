@@ -5,11 +5,9 @@ using System.Windows;
 using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
-using System.Collections.Generic;
 using System;
 using System.ComponentModel;
 using System.Windows.Data;
-using Microsoft.Win32;
 
 namespace PhotoFinish
 {
@@ -73,10 +71,10 @@ namespace PhotoFinish
         public ICommand MeetChangedCommand { get; set; }
         public ICommand FinishLaneCommand { get; set; }
         public ICommand StartCommand { get; set; }
-        public ICommand FindSyncCommand { get; set; }
-        public ICommand AddSyncCommand { get; set; }
         public ICommand FastForwardCommand { get; set; }
         public ICommand RewindCommand { get; set; }
+        public ICommand PlayCommand { get; set; }
+        public ICommand PauseCommand { get; set; }
         public ICommand PlayPauseCommand { get; set; }
         public ICommand UpCommand { get; set; }
         public ICommand DownCommand { get; set; }
@@ -86,6 +84,14 @@ namespace PhotoFinish
         public ICommand SaveCommand { get; set; }
         public ICommand ExitCommand { get; set; }
         public ICommand RemoveRaceCommand { get; set; }
+
+        private Race CurrentRace
+        {
+            get
+            {
+                return CurrentEntry != null ? CurrentEntry.Race : null;
+            }
+        }
 
         public Meet()
         {
@@ -120,13 +126,13 @@ namespace PhotoFinish
             FastForwardCommand = new DelegateCommand(FastForward);
             RewindCommand = new DelegateCommand(Rewind);
             PlayPauseCommand = new DelegateCommand(PlayPause);
+            PlayCommand = new DelegateCommand(Play);
+            PauseCommand = new DelegateCommand(Pause);
             UpCommand = new DelegateCommand(Up);
             DownCommand = new DelegateCommand(Down);
             NextFrameCommand = new DelegateCommand(NextFrame);
             PrevFrameCommand = new DelegateCommand(PrevFrame);
             VisualSearchCommand = new DelegateCommand(VisualSearch);
-            FindSyncCommand = new DelegateCommand(FindSync);
-            AddSyncCommand = new DelegateCommand(AddSync);
             GotoFinishTimeCommand = new DelegateCommand<TimeStamp>(GotoFinishTime);
 
             Entries = new ObservableCollection<Entry>();
@@ -149,7 +155,7 @@ namespace PhotoFinish
                 Dates.Add(today);
             }
 
-            CurrentMeet = today;
+            //CurrentMeet = today;
 
             Athlete.LoadAthletePBs(this);
             Athlete.LoadRecords();
@@ -163,7 +169,10 @@ namespace PhotoFinish
         private void UploadHeats()
         {
             if (NativeVideo.UploadHeats(Directory + "heats.txt"))
+            {
                 LoadHeats();
+                AdjustEntries(null);
+            }
         }
 
         private void ViewStart()
@@ -175,130 +184,124 @@ namespace PhotoFinish
         private void ViewFinish()
         {
             if (finishPlayer != IntPtr.Zero)
-                NativeVideo.GotoTime(finishPlayer, FinishTimeStamp.pts);
+                NativeVideo.GotoTime(finishPlayer, NearestFrame(CurrentRace.CorrespondingFinishTime(StartTimeStamp.pts)));
         }
 
         private void UploadVideo()
         {
+            if (CurrentMeet == null)
+                return;
+
             var date = DateTime.Parse(CurrentMeet);
             var window = new Views.UploadVideos(date);
-            window.Show();
+            if (window.ShowDialog().Value)
+            {
+                // add sync ...
+                var race = new Race(this, 93600, window.start.dstFilename, window.finish.dstFilename, 
+                    true, window.video_c0, window.video_c1);
+                race.PropertyChanged += Race_PropertyChanged;
+                Races.Add(race);
+                AdjustEntries(race);
+                SaveRaces();
+            }
         }
 
-        private void start_event_handler(long event_type)
+        private void start_event_handler(long event_type, int wm_keydown)
         {
-            event_handler(event_type);
+            event_handler(event_type, wm_keydown);
         }
 
-        private void finish_event_handler(long event_type)
+        private void finish_event_handler(long event_type, int wm_keydown)
         {
-            event_handler(event_type);
+            event_handler(event_type, wm_keydown);
         }
 
-        private void event_handler(long event_type)
+        private bool down = false;
+        private System.DateTime down_start;
+
+        public void AutoRepeatRight()
+        {
+            if (down)
+            {
+                var now = System.DateTime.Now;
+                var down_time = now - down_start;
+                if (down_time.TotalSeconds > 0.25)
+                    PlayCommand.Execute(null);
+                else
+                    NextFrameCommand.Execute(null);
+            }
+            else
+            {
+                down = true;
+                down_start = System.DateTime.Now;
+                NextFrameCommand.Execute(null);
+            }
+        }
+
+        public void StopRepeatRight()
+        {
+            down = false;
+            PauseCommand.Execute(null);
+        }
+
+        private void event_handler(long event_type, int wm_keydown)
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                switch (event_type)
-                {
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                        int lane = (int)event_type - '0';
-                        FinishLaneCommand.Execute(lane);
-                        return;
-                    case ' ':
-                        StartCommand.Execute(null);
-                        return;
-                    case 'F':
-                        FastForwardCommand.Execute(null);
-                        return;
-                    case 'R':
-                        RewindCommand.Execute(null);
-                        return;
-                    case 'P':
-                        PlayPauseCommand.Execute(null);
-                        return;
-                    case 0x25: // Left
-                        PrevFrameCommand.Execute(null);
-                        return;
-                    case 0x26: // Up
-                        UpCommand.Execute(null);
-                        return;
-                    case 0x27: // Right
-                        NextFrameCommand.Execute(null);
-                        return;
-                    case 0x28: // Down
-                        DownCommand.Execute(null);
-                        return;
+                if (wm_keydown != 0)
+                    switch (event_type)
+                    {
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                        case '8':
+                            int lane = (int)event_type - '0';
+                            FinishLaneCommand.Execute(lane);
+                            return;
+                        case ' ':
+                            StartCommand.Execute(null);
+                            return;
+                        case 'F':
+                            FastForwardCommand.Execute(null);
+                            return;
+                        case 'R':
+                            RewindCommand.Execute(null);
+                            return;
+                        case 'P':
+                            PlayPauseCommand.Execute(null);
+                            return;
+                        case 0x25: // Left
+                            PrevFrameCommand.Execute(null);
+                            return;
+                        case 0x26: // Up
+                            UpCommand.Execute(null);
+                            return;
+                        case 0x27: // Right
+                            AutoRepeatRight();
+                            return;
+                        case 0x28: // Down
+                            DownCommand.Execute(null);
+                            return;
 
-                    case 'S':
-                        this.VisualSearchCommand.Execute(null);
-                        return;
+                        case 'S':
+                            this.VisualSearchCommand.Execute(null);
+                            return;
+                    }
+                else
+                {
+                    if (event_type == 0x27) // Right
+                        StopRepeatRight();
                 }
             });
         }
 
-        String FindVideo(String which)
-        {
-            var files = System.IO.Directory.EnumerateFiles(Directory, "Track1-" + which + "*.MTS");
-
-            if (files.Count() == 1)
-                return files.First();
-            else
-            {
-                var dialog = new OpenFileDialog();
-                dialog.InitialDirectory = Directory;
-                dialog.Filter = "Video Files|*.MTS";
-                if (dialog.ShowDialog() == true)
-                    return dialog.FileName;
-                else
-                    return null;
-            }
-        }
-
-        private void FindSync()
-        {
-            String startFile = FindVideo("Start");
-
-            String finishFile = FindVideo("Finish");
-
-            if (startFile == null || finishFile == null)
-                return;
-
-            StartTimeStamp.filename = startFile;
-            //startPlayer = NativeVideo.OpenVideo(startFile, StartEventHandler, StartTimeHandler, null);
-
-            FinishTimeStamp.filename = finishFile;
-            //finishPlayer = NativeVideo.OpenVideo(finishFile, FinishEventHandler, FinishTimeHandler, null);
-        }
-
-        TimeStamp startSync, finishSync;
-
-        private void AddSync()
-        {
-            var race = new Race(this);
-            race.StartTime = new TimeStamp(StartTimeStamp);
-            race.FinishFile = FinishTimeStamp.filename;
-            race.IsSync = true;
-            race.sync = (FinishTimeStamp.pts - FinishTimeStamp.start) - (StartTimeStamp.pts - StartTimeStamp.start);
-            Races.Add(race);
-
-            AdjustEntries(race);
-            SaveRaces();
-
-            startSync = new TimeStamp(StartTimeStamp); 
-            finishSync = new TimeStamp(FinishTimeStamp);
-        }
-
         private void VisualSearch()
         {
-            NativeVideo.VisualSearch(startPlayer, finishPlayer);
+            NativeVideo.VisualSearch(startPlayer, NearestFrame(CurrentRace.CorrespondingStartTime(FinishTimeStamp.pts)));
         }
 
         private void Rewind()
@@ -309,6 +312,16 @@ namespace PhotoFinish
         private void FastForward()
         {
             NativeVideo.FastForward();
+        }
+
+        private void Pause()
+        {
+            NativeVideo.Pause();
+        }
+
+        private void Play()
+        {
+            NativeVideo.Play();
         }
 
         private void PlayPause()
@@ -335,35 +348,54 @@ namespace PhotoFinish
             NativeVideo.PrevFrame();
         }
 
+        private long NearestFrame(long pts)
+        {
+            return (long)Math.Round((double)(pts / TimeStamp.PTS_PER_FRAME)) * TimeStamp.PTS_PER_FRAME;
+        }
+
         private void AddRace()
         {
-            var race = new Race(this);
-            race.StartTime = new TimeStamp(StartTimeStamp);
-            race.FinishFile = FinishTimeStamp.filename;
+            Race race;
 
+            // find where this race belongs in list based on start time ...
             int i = 0;
-            while (i < Races.Count && Races[i].StartTime.ToTime() < race.StartTime.ToTime())
+            while (i < Races.Count && Races[i].StartTime.ToTime() < StartTimeStamp.ToTime())
                 i++;
 
-            if (i == Races.Count || Races[i].StartTime.ToTime() != race.StartTime.ToTime())
+            // insert or replace new race ...
+            if (i == Races.Count || Races[i].StartTime.ToTime() != StartTimeStamp.ToTime())
             {
+                race = new Race(this, StartTimeStamp.pts, StartTimeStamp.filename, FinishTimeStamp.filename, false, 0, 0);
+                race.PropertyChanged += Race_PropertyChanged;
                 Races.Insert(i, race);
-                CurrentEntry = AdjustEntries(race);
             }
             else
                 race = Races[i];
+
+            CurrentEntry = AdjustEntries(race);
+
+            // inherit synchronization from previous race
+            if (i > 0 && !race.IsSync)
+            {
+                race.video_c0 = Races[i - 1].video_c0;
+                race.video_c1 = Races[i - 1].video_c1;
+            }
 
             long best = 0;
             if (race.heat != null)
                 best = TimeStamp.Pts(race.heat.BestTime);
 
-            long skip = (long)(0.9 * best);
-            skip = (skip / TimeStamp.PTS_PER_FRAME) * TimeStamp.PTS_PER_FRAME;
+            var skip = (long)(0.9 * best);
 
             SaveRaces();
 
-            NativeVideo.GotoTime(finishPlayer, race.StartTime.pts + race.sync + skip);
-            NativeVideo.PlayPause();
+            NativeVideo.GotoTime(finishPlayer, NearestFrame(race.CorrespondingFinishTime(race.StartTime.pts) + skip));
+            //NativeVideo.PlayPause();
+        }
+
+        private void Race_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            SaveRaces();
         }
 
         private TimeStamp StartTimeStamp, FinishTimeStamp;
@@ -377,22 +409,17 @@ namespace PhotoFinish
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyname));
         }
 
-        private void start_time_handler(long start, long pts)
+        private void start_time_handler(long pts)
         {
-            StartTimeStamp.start = start;
             StartTimeStamp.pts = pts;
-
             StartTime = StartTimeStamp.ToString();
         }
 
-        private void finish_time_handler(long start, long pts)
+        private void finish_time_handler(long pts)
         {
-            FinishTimeStamp.start = start;
             FinishTimeStamp.pts = pts;
 
-            var race = CurrentEntry != null ? CurrentEntry.Race : null;
-
-            if (race != null)
+            if (CurrentRace != null)
                 FinishTime = FinishTimeStamp.Elapsed;
             else
                 FinishTime = "";
@@ -400,38 +427,44 @@ namespace PhotoFinish
 
         public void RaceChanged()
         {
-            if (CurrentEntry == null || CurrentEntry.Race == null)
+            if (CurrentRace == null)
                 return;
 
-            StartTimeStamp.race = CurrentEntry.Race;
-            FinishTimeStamp.race = CurrentEntry.Race;
+            StartTimeStamp.race = CurrentRace;
+            FinishTimeStamp.race = CurrentRace;
 
-            if (StartTimeStamp.filename != CurrentEntry.Race.StartTime.filename || FinishTimeStamp.filename != CurrentEntry.Race.FinishFile)
+            if (StartTimeStamp.filename != CurrentRace.StartTime.filename || FinishTimeStamp.filename != CurrentRace.FinishFile)
             {
-                StartTimeStamp.filename = CurrentEntry.Race.StartTime.filename;
-                FinishTimeStamp.filename = CurrentEntry.Race.FinishFile;
+                StartTimeStamp.filename = CurrentRace.StartTime.filename;
+                FinishTimeStamp.filename = CurrentRace.FinishFile;
 
-                //if (startPlayer != IntPtr.Zero)
-                //    NativeVideo.Close(startPlayer);
+                if (startPlayer != IntPtr.Zero)
+                    NativeVideo.Close(startPlayer);
+
+                if (finishPlayer != IntPtr.Zero)
+                    NativeVideo.Close(finishPlayer);
 
                 var progress = new PhotoFinish.Views.LoadProgressPair();
 
+                var start = CurrentRace.StartTime.filename;
+                var finish = CurrentRace.FinishFile;
+
                 Task.Run(() =>
                 {
-                    var startSource = NativeVideo.LoadVideo(Directory + CurrentEntry.Race.StartTime.filename, progress.StartProgressHandler);
+                    var startSource = NativeVideo.LoadVideo(start, progress.StartProgressHandler);
                     startPlayer = NativeVideo.OpenVideo(startSource, StartEventHandler, StartTimeHandler);
                 });
 
                 Task.Run(() =>
                 {
-                    var finishSource = NativeVideo.LoadVideo(Directory + CurrentEntry.Race.FinishFile, progress.FinishProgressHandler);
+                    var finishSource = NativeVideo.LoadVideo(finish, progress.FinishProgressHandler);
                     finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler);
                 });
 
                 progress.ShowDialog();
             }
 
-            NativeVideo.GotoTime(startPlayer, CurrentEntry.Race.StartTime.pts);
+            NativeVideo.GotoTime(startPlayer, CurrentRace.StartTime.pts);
         }
 
         private void GotoFinishTime(TimeStamp timestamp)
@@ -483,6 +516,7 @@ namespace PhotoFinish
             if (entry.Race != null)
                 Races.Remove(entry.Race);
             AdjustEntries(null);
+            SaveRaces();
         }
 
         private void LoadHeats()
@@ -513,14 +547,30 @@ namespace PhotoFinish
                                 heat.athletes[lane].Add(Athlete.Lookup(int.Parse(athlete), this));
 
                     if (heat.AthleteCount > 0)
+                    {
                         Heats.Add(heat);
+                        heat.PropertyChanged += Heat_PropertyChanged;
+                    }
                 }
             }
         }
 
+        private void SaveHeats()
+        {
+            StreamWriter writer = Backup(Directory + @"\heats.txt");
+            for (int i = 0; i < Heats.Count; i++)
+                Heats.ElementAt(i).Save(writer);
+            writer.Close();
+        }
+
+        private void Heat_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            this.SaveHeats();
+        }
+
         public StreamWriter Backup(string filename)
         {
-            var backup = filename + ".backup";
+            var backup = filename + ".backup2";
             if (File.Exists(backup))
                 File.Delete(backup);
             if (File.Exists(filename))
@@ -530,7 +580,7 @@ namespace PhotoFinish
 
         public void SaveRaces()
         {
-            StreamWriter writer = Backup(Directory + @"\races.txt");
+            StreamWriter writer = Backup(Directory + @"\races2.txt");
             for (int i = 0; i < Races.Count; i++)
                 Races.ElementAt(i).Save(writer);
             writer.Close();
@@ -540,48 +590,17 @@ namespace PhotoFinish
         {
             Races.Clear();
 
-            var racesFile = Directory + "races.txt";
+            var racesFile = Directory + "races2.txt";
 
             if (File.Exists(racesFile))
             {
                 var file = new StreamReader(racesFile);
-
                 while (!file.EndOfStream)
                 {
-                    var race = new Race(this);
-
-                    var parts = file.ReadLine().Split(',');
-                    var StartFile = parts[0];
-                    var StartStart = long.Parse(parts[1]);
-                    var StartPts = long.Parse(parts[2]);
-
-                    // FIXME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-                    race.StartTime = new TimeStamp(this, race, StartStart, StartPts, StartFile);
-
-                    var Sync1 = long.Parse(parts[3]); // bang
-                    var Distance = parts[4];
-
-                    race.IsSync = (Distance == "Sync");
-
-                    race.FinishFile = parts[5];
-
-                    race.sync = long.Parse(parts[6]); // Visual Sync
-                    var Sync3 = long.Parse(parts[7]); // Audio Sync
-
-                    for (int lane=0; lane<8; lane++)
-                        if (parts[8+lane].Length > 0)
-                            foreach (var time in parts[8+lane].Split('.'))
-                            {
-                                var subparts = time.Split('|');
-                                var FinishStart = long.Parse(subparts[0]);
-                                var FinishPts = long.Parse(subparts[1]);
-                                race.finishTimes[lane].Add(new TimeStamp(this, race, FinishStart, FinishPts, race.FinishFile));
-                            }
-
+                    var race = new Race(this, file.ReadLine());
+                    race.PropertyChanged += Race_PropertyChanged;
                     Races.Add(race);
                 }
-
                 AdjustEntries(null);
             }
         }
@@ -603,13 +622,13 @@ namespace PhotoFinish
 
         private void SaveResults()
         {
-            var emailWriter = new StreamWriter(Directory + @"\email-test.csv");
-            var resultshqWriter = new StreamWriter(Directory + @"\resultshq-test.csv");
+            var emailWriter = new StreamWriter(Directory + @"\email.csv");
+            var resultshqWriter = new StreamWriter(Directory + @"\resultshq.csv");
 
             resultshqWriter.WriteLine("id,firstname,surname,age,gender,eventname,date,result,heattype,pb,status");
 
             foreach (var entry in Entries)
-                if (entry.Heat != null)
+                if (entry.Heat != null && entry.Race != null)
                 {
                     var distance = entry.Heat.Distance;
 
@@ -652,7 +671,11 @@ namespace PhotoFinish
 
         private void FinishLane(int? lane)
         {
-            CurrentEntry.Race.finishTimes[lane.Value - 1].Add(new TimeStamp(FinishTimeStamp));
+            int i = 0;
+            while (i < CurrentRace.finishTimes[lane.Value - 1].Count && CurrentRace.finishTimes[lane.Value - 1][i].pts < FinishTimeStamp.pts)
+                i++;
+            CurrentRace.finishTimes[lane.Value - 1].Insert(i, new TimeStamp(FinishTimeStamp));
+            SaveRaces();
         }
     }
 }   

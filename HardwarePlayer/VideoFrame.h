@@ -9,6 +9,7 @@ public:
 	CUvideotimestamp pts = 0;
 	GLuint gl_pbo;
 	long long luminance = 0;
+	int hits;
 	CUgraphicsResource resource = 0;
 	int field;
 
@@ -21,5 +22,11 @@ public:
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 		
 		CHECK(cuGraphicsGLRegisterBuffer(&resource, gl_pbo, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
+	}
+
+	~VideoFrame()
+	{
+		CHECK(cuGraphicsUnregisterResource(resource));
+		glDeleteBuffers(1, &gl_pbo);
 	}
 };

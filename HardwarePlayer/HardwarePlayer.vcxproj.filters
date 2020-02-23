@@ -31,9 +31,6 @@
     <ClInclude Include="VideoBuffer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="VideoIndex.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="VideoFrame.h">
       <Filter>Source Files</Filter>
     </ClInclude>

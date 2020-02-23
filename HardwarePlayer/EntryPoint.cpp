@@ -6,6 +6,7 @@ extern "C"
 #include "avformat.h"
 }
 
+
 #include <stdio.h>
 #include <io.h>
 #include <inttypes.h>
@@ -27,7 +28,6 @@ extern "C"
 
 #include "Helper.h"
 #include "FrameQueue.h"
-#include "VideoIndex.h"
 #include "SDCardReader.h"
 #include "H264Parser.h"
 #include "Sync.h"
@@ -45,9 +45,9 @@ extern "C"
 
 DWORD eventLoopThread;
 
-extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename, int which, char** filenames, int count, size_t maxSize, progresshandler progress_handler)
+extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename, int which, char** filenames, int count, size_t totalSize, progresshandler progress_handler)
 {
-	return new VideoSource0(destFilename, which, filenames, count, maxSize, progress_handler);
+	return new VideoSource0(destFilename, which, filenames, count, totalSize, progress_handler);
 }
 
 extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
@@ -65,6 +65,11 @@ extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(VideoSource1* source, ev
 	VideoBuffer *buffer = new VideoBuffer(event_handler, time_handler);
 	PostThreadMessage(eventLoopThread, Messages::OPENVIDEO, (WPARAM)buffer, (LPARAM)source);
 	return buffer;
+}
+
+extern "C" __declspec(dllexport) void Close(VideoBuffer* buffer)
+{
+	PostThreadMessage(eventLoopThread, Messages::CLOSE, (WPARAM)buffer, 0);
 }
 
 extern "C" __declspec(dllexport) void GotoTime(VideoBuffer *newBuffer, CUvideotimestamp pts)
@@ -92,9 +97,9 @@ extern "C" __declspec(dllexport) void PrevFrame()
 	PostThreadMessage(eventLoopThread, Messages::STEPPREVFRAME, 0, 0);
 }
 
-extern "C" __declspec(dllexport) void VisualSearch(VideoBuffer * startPlayer, VideoBuffer * finishPlayer)
+extern "C" __declspec(dllexport) void VisualSearch(VideoBuffer * startPlayer, CUvideotimestamp pts)
 {
-	PostThreadMessage(eventLoopThread, Messages::VISUALSEARCH, (WPARAM)startPlayer, (LPARAM)finishPlayer);
+	PostThreadMessage(eventLoopThread, Messages::VISUALSEARCH, (WPARAM)startPlayer, (LPARAM)pts);
 }
 
 extern "C" __declspec(dllexport) void Rewind()
@@ -105,6 +110,16 @@ extern "C" __declspec(dllexport) void Rewind()
 extern "C" __declspec(dllexport) void FastForward()
 {
 	PostThreadMessage(eventLoopThread, Messages::FASTFORWARD, 0, 0);
+}
+
+extern "C" __declspec(dllexport) void Pause()
+{
+	PostThreadMessage(eventLoopThread, Messages::PAUSE, 0, 0);
+}
+
+extern "C" __declspec(dllexport) void Play()
+{
+	PostThreadMessage(eventLoopThread, Messages::PLAY, 0, 0);
 }
 
 extern "C" __declspec(dllexport) void PlayPause()

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System;
+using System.IO;
+using System.Linq;
 
 namespace PhotoFinish
 {
@@ -108,13 +110,22 @@ namespace PhotoFinish
             for (int i = 0; i < 8; i++)
             {
                 athletes[i] = new ObservableCollection<Athlete>();
-                //athletes[i].CollectionChanged += AthleteCollectionChanged;
+                athletes[i].CollectionChanged += Heat_CollectionChanged;
             }
         }
 
-        //private void AthleteCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        //{
-        //    OnPropertyRaised("Summary");
-        //}
+        private void Heat_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyRaised("AthleteCount");
+            OnPropertyRaised("BestTime");
+            OnPropertyRaised("Records");
+            OnPropertyRaised("Ages");
+        }
+
+        public void Save(StreamWriter writer)
+        {
+            writer.WriteLine("Event: {0}", this.Distance);
+            writer.WriteLine(string.Join(",", athletes.Select(lane => string.Join(".", lane.Select(athlete => athlete.number)))));
+        }
     }
 }

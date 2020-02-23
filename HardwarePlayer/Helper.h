@@ -12,11 +12,11 @@ extern "C"
 {
 	typedef void(__stdcall *ReportSync)(int, long, double, double);
 	typedef void(__stdcall *progresshandler)(int, long long, long long, char*);
-	typedef void(__stdcall *eventhandler)(long long);
-	typedef void(__stdcall *timehandler)(CUvideotimestamp, CUvideotimestamp);
+	typedef void(__stdcall *eventhandler)(long long, int);
+	typedef void(__stdcall *timehandler)(CUvideotimestamp);
 }
 
-enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, UP, DOWN };
+enum Messages { OPENVIDEO = WM_USER + 1, GOTO, PLAYPAUSE, PAUSE, PLAY, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, CLOSE, UP, DOWN };
 
 void inline Trace(const char* format, ...)
 {
@@ -55,42 +55,27 @@ void CHECK(CUresult result)
 	}
 }
 
-#define CHECK2(err)  __cudaSafeCall(err,__FILE__,__LINE__)
-
-inline void __cudaSafeCall(cudaError err, const char *file, const int line) 
-{
-	/*
-	if (cudaSuccess != err) 
-	{
-		printf("%s(%i) : cutilSafeCall() Runtime API error : %s.\n",
-			file, line, cudaGetErrorString(err));
-		exit(-1);
-	}
-	*/
-}
-
 using namespace std::chrono;
 
 high_resolution_clock::time_point starts[10000];
 high_resolution_clock::time_point ends[10000];
 
 int sample[10] = { 0,0,0,0,0,0,0,0,0,0};
-bool recording = false;
 
-void StartTime(int label)
-{
-	if (recording && sample[label] < 1000)
-		starts[label * 1000 + (sample[label])] = high_resolution_clock::now();
-}
-
-void EndTime(int label)
-{
-	if (recording && sample[label] < 1000)
-	{
-		ends[label * 1000 + (sample[label])] = high_resolution_clock::now();
-		sample[label]++;
-	}
-}
+//void StartTime(int label)
+//{
+//	if (recording && sample[label] < 1000)
+//		starts[label * 1000 + (sample[label])] = high_resolution_clock::now();
+//}
+//
+//void EndTime(int label)
+//{
+//	if (recording && sample[label] < 1000)
+//	{
+//		ends[label * 1000 + (sample[label])] = high_resolution_clock::now();
+//		sample[label]++;
+//	}
+//}
 
 void DisplayAverages()
 {
@@ -107,6 +92,6 @@ void DisplayAverages()
 		}
 		double average = sum / sample[label];
 
-		Trace2("average %d = %f (%d)", label, 1000000 * average, sample[label]);
+		//Trace2("average %d = %f (%d)", label, 1000000 * average, sample[label]);
 	}
 }

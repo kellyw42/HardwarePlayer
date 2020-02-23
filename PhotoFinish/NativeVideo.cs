@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 
 
 public delegate void ReportSync(int pos, long start_time, double c0, double c1);
-public delegate void timehandler(long start, long now);
-public delegate void eventhandler(long event_type);
+public delegate void timehandler(long now);
+public delegate void eventhandler(long event_type, int wm_keydown);
 public delegate void progresshandler(int thread, long completed, long total, string units);
 
 //VideoSource1* LoadVideo(char* filename, progresshandler progress_handler)
@@ -26,10 +26,14 @@ namespace PhotoFinish
         public static extern IntPtr OpenVideo(IntPtr source, eventhandler event_handler, timehandler time_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Close(IntPtr videoBuffer);
+
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SyncAudio(ReportSync progress_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr OpenCardVideo(string destFilename, string directory, int which, string[] stringArray, int count, ulong maxSize, progresshandler progress_handler);
+        public static extern IntPtr OpenCardVideo(string destFilename, int which, string[] stringArray, int count, ulong totalSize, progresshandler progress_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GotoTime(IntPtr player, long pts);
@@ -44,6 +48,12 @@ namespace PhotoFinish
         public static extern void PlayPause();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Play();
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Pause();
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Up();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -56,7 +66,7 @@ namespace PhotoFinish
         public static extern void PrevFrame();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void VisualSearch(IntPtr startPlayer, IntPtr finishPlayer);
+        public static extern void VisualSearch(IntPtr startPlayer, long pts);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GetAudio(String filename, [MarshalAs(UnmanagedType.LPArray, SizeConst = 48000)] float[] data, int start);

@@ -13,10 +13,21 @@ namespace PhotoFinish
             set
             {
                 race = value;
+                if (race != null)
+                    race.PropertyChanged += Race_PropertyChanged;
                 OnPropertyChanged("Race");
                 OnPropertyChanged("Lanes");
                 OnPropertyChanged("Distance");
+                OnPropertyChanged("Brush");
             }
+        }
+
+        private void Race_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            OnPropertyChanged("Race");
+            OnPropertyChanged("Lanes");
+            OnPropertyChanged("Distance");
+            OnPropertyChanged("Brush");
         }
 
         private Heat heat;
@@ -27,9 +38,42 @@ namespace PhotoFinish
             set
             {
                 heat = value;
+                if (heat != null)
+                    heat.PropertyChanged += Heat_PropertyChanged;
                 OnPropertyChanged("Heat");
                 OnPropertyChanged("Lanes");
                 OnPropertyChanged("Distance");
+                OnPropertyChanged("Brush");
+            }
+        }
+
+        private void Heat_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            OnPropertyChanged("Race");
+            OnPropertyChanged("Lanes");
+            OnPropertyChanged("Distance");
+            OnPropertyChanged("Brush");
+        }
+
+        public System.Windows.Media.Brush Brush
+        {
+            get
+            {
+                if (heat != null && race != null)
+                {
+                    bool good = true;
+                    for (int lane = 0; lane < race.finishTimes.Length; lane++)
+                    {
+                        var times = race.finishTimes[lane];
+                        var athletes = heat.athletes[lane];
+                        if (times.Count != athletes.Count)
+                            good = false;
+                    }
+                    if (good)
+                        return System.Windows.Media.Brushes.LightBlue;
+                }
+
+                return System.Windows.Media.Brushes.Transparent;
             }
         }
 
