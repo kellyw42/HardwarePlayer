@@ -93,6 +93,7 @@ namespace PhotoFinish
             }
         }
 
+        //StreamWriter histogram = new StreamWriter("histogram55.csv");
         public Meet()
         {
             StartTimeHandler = new timehandler(start_time_handler);
@@ -155,7 +156,7 @@ namespace PhotoFinish
                 Dates.Add(today);
             }
 
-            //CurrentMeet = today;
+            //CurrentMeet = "2020-02-28";
 
             Athlete.LoadAthletePBs(this);
             Athlete.LoadRecords();
@@ -321,6 +322,7 @@ namespace PhotoFinish
 
         private void Play()
         {
+            //recording = true;
             NativeVideo.Play();
         }
 
@@ -415,10 +417,61 @@ namespace PhotoFinish
             StartTime = StartTimeStamp.ToString();
         }
 
+        //private System.Drawing.Bitmap image = new System.Drawing.Bitmap(1920, 1080);
+        //private int xpos = 1900;
+        //private int icount = 0;
         private void finish_time_handler(long pts)
         {
             FinishTimeStamp.pts = pts;
 
+            //if (recording)
+            //{
+            //    var x = 960;
+
+            //    var size = 4 * 1920 * 1080 / 2;
+            //    byte[] dest = new byte[size];
+            //    System.Runtime.InteropServices.Marshal.Copy(host, dest, 0, size);
+
+            //    var top = 1039;
+            //    var bottom = 985;
+
+            //    for (int yy = 0; yy < 1080; yy++)
+            //    {
+            //        for (int i = 0; i < 20; i+=2)
+            //        {
+            //            var dy = ((float)yy) / 1080;
+            //            int copyx = (int)(dy * bottom + (1 - dy) * top);
+
+            //            var offset0 = ((yy / 2) * 1920 + copyx + (i/2) - 10) * 4;
+            //            var blue0 = dest[offset0];
+            //            var green0 = dest[offset0 + 1];
+            //            var red0 = dest[offset0 + 2];
+
+            //            image.SetPixel(xpos + i, yy, System.Drawing.Color.FromArgb(red0, green0, blue0));
+            //            image.SetPixel(xpos + i, yy + 1, System.Drawing.Color.FromArgb(red0, green0, blue0));
+            //            image.SetPixel(xpos + i + 1, yy, System.Drawing.Color.FromArgb(red0, green0, blue0));
+            //            image.SetPixel(xpos + i + 1, yy + 1, System.Drawing.Color.FromArgb(red0, green0, blue0));
+            //        }
+            //        yy++;
+            //    }
+            //    xpos -= 20;
+            //    if (xpos < 0)
+            //    {
+            //        image.Save("photofinish" + icount.ToString("D3") + ".tif", System.Drawing.Imaging.ImageFormat.Tiff);
+            //        xpos = 1900;
+            //        icount++;
+            //    }
+
+
+            //    var y = 540;
+            //    var offset = ((y / 2) * 1920 + x) * 4;
+            //    var blue = dest[offset];
+            //    var green = dest[offset + 1];
+            //    var red = dest[offset + 2];
+
+            //    histogram.WriteLine("{0},{1},{2},{3}", FinishTimeStamp.ToString(), red, green, blue);
+            //    histogram.Flush();
+            //}
             if (CurrentRace != null)
                 FinishTime = FinishTimeStamp.Elapsed;
             else

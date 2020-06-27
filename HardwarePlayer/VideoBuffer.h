@@ -9,7 +9,7 @@ class VideoBuffer
 {
 private:
 	VideoConverter * videoConverter;
-	VideoDecoder* decoder;
+
 	VideoFrame* frames[NumFrames];
 	timehandler time_handler;
 	eventhandler event_handler;
@@ -68,6 +68,7 @@ private:
 public:
 	CUvideotimestamp displayed;
 	float top, bottom;
+	VideoDecoder* decoder;
 	RECT searchRect;
 	int width, height;
 
@@ -91,13 +92,16 @@ public:
 
 		decoder->OpenVideo(source);
 
-		width = source->format.display_area.right - source->format.display_area.left;
-		height = source->format.display_area.bottom - source->format.display_area.top;
+		decoder->Init();
+
+		width = decoder->decoderParams.ulTargetWidth; // source->format.display_area.right - source->format.display_area.left;
+		height = decoder->decoderParams.ulTargetHeight; //  source->format.display_area.bottom - source->format.display_area.top;
+		//width = source->format.display_area.right - source->format.display_area.left;
+		//height = source->format.display_area.bottom - source->format.display_area.top;
 
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(width, height/2);
 
-		decoder->Init();
 		decoder->Start();
 
 		sprintf(finish_filename, "%.55s.MTS.finishline", source->videoFilename);

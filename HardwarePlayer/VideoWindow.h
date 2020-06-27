@@ -124,6 +124,12 @@ void RenderFrame(VideoFrame *frame)
 	int width = videoBuffer->width;
 	int height = videoBuffer->height/2;
 
+	int dx = videoBuffer->decoder->decoderParams.display_area.left;
+	int dy = videoBuffer->decoder->decoderParams.display_area.top;
+
+	float fx = ((float)dx) / display_width;
+	float fy = ((float)dy) / display_height;
+
 	float w = ((float)width) / display_width;
 	float h = ((float)height) / display_height;
 
@@ -155,6 +161,19 @@ void RenderFrame(VideoFrame *frame)
 
 	glBegin(GL_QUADS);
 
+		glTexCoord2f(0, 0); // image top left
+		glVertex2f(fx + 0, 1 - fy); // screen
+
+		glTexCoord2f(0, (float)height); // image left bottom
+		glVertex2f(fx + 0, 1 - fy - 2 * h); // screen
+
+		glTexCoord2f((float)width, (float)height); // image bottom right
+		glVertex2f(fx + w, 1 - fy - 2 * h); // screen
+
+		glTexCoord2f((float)width, 0); // image top right
+		glVertex2f(fx + w, 1 - fy); // screen
+
+	/*
 		glTexCoord2f(0, (float)height);
 		glVertex2f(0, 0);
 
@@ -166,7 +185,7 @@ void RenderFrame(VideoFrame *frame)
 
 		glTexCoord2f(0, 0);
 		glVertex2f(0, 1);
-
+	*/
 	glEnd();
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);

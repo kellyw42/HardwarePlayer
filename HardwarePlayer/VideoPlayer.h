@@ -32,7 +32,7 @@ void Render()
 			if (speed == 1)
 			{
 				frame = videoBuffer->NextFrame(0);
-				Sleep(delay);
+				//Sleep(delay);
 				if (crossing)
 				{
 					if (frame->hits == 0)

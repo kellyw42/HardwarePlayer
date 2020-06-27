@@ -60,6 +60,26 @@ public:
 		decoderParams.ulWidth = source->format.coded_width;
 		decoderParams.ulHeight = source->format.coded_height;
 		
+		double cropLeft = 0, cropTop = 0, cropRight = 1.0, cropBotton = 1.0;
+
+		if (source->format.display_area.right == 1920)
+		{
+			cropLeft = 0.25;
+			cropRight = 0.75;
+			cropTop = 0.25;
+			cropBotton = 0.75;
+		}
+
+		decoderParams.display_area.left = source->format.display_area.right * cropLeft;
+		decoderParams.display_area.right = source->format.display_area.right * cropRight;
+		decoderParams.display_area.top = source->format.display_area.bottom * cropTop;
+		decoderParams.display_area.bottom = source->format.display_area.bottom * cropBotton;
+
+		decoderParams.target_rect.left = 0;
+		decoderParams.target_rect.top = 0;
+		decoderParams.target_rect.right = decoderParams.display_area.right - decoderParams.display_area.left;
+		decoderParams.target_rect.bottom = decoderParams.display_area.bottom - decoderParams.display_area.top;
+/*
 		decoderParams.display_area.left = source->format.display_area.left;
 		decoderParams.display_area.right = source->format.display_area.right;
 		decoderParams.display_area.top = source->format.display_area.top;
@@ -69,6 +89,7 @@ public:
 		decoderParams.target_rect.right = source->format.display_area.right;
 		decoderParams.target_rect.top = source->format.display_area.top;
 		decoderParams.target_rect.bottom = source->format.display_area.bottom;
+*/
 
 		decoderParams.ulTargetHeight = (decoderParams.target_rect.bottom - decoderParams.target_rect.top);
 		decoderParams.ulTargetWidth = (decoderParams.target_rect.right - decoderParams.target_rect.left);

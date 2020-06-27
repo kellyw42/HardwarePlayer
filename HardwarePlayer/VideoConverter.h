@@ -140,8 +140,11 @@ public:
 		if (SearchRectangle)
 			cudaLaunchLuminance(&topFrame->luminance, &bottomFrame->luminance, YUVFramePtr, YUVPitch, width, height, SearchRectangle->left, SearchRectangle->right, SearchRectangle->top, SearchRectangle->bottom);
 
-		//DownloadFrame(topFrame->pts, RGBTopPtr, width, width, height);
-		//DownloadFrame(bottomFrame->pts, RGBBottomPtr, width, width, height);
+		//cuMemcpyDtoH(topFrame->host,    RGBTopPtr,    height / 2 * width * sizeof(uint32_t));
+		//cuMemcpyDtoH(bottomFrame->host, RGBBottomPtr, height / 2 * width * sizeof(uint32_t));
+
+		//DownloadFrame(topFrame->pts, RGBTopPtr, width, width, height/2);
+		//DownloadFrame(bottomFrame->pts, RGBBottomPtr, width, width, height/2);
 
 		CHECK(cuGraphicsUnmapResources(2, resources, 0));
 
