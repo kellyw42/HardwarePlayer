@@ -1,7 +1,6 @@
 #pragma once
 
-#define display_width 1920
-#define display_height 1080
+
 
 #define BATCH 1000
 #define TS_PACKET_SIZE	  192

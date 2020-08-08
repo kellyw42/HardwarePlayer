@@ -23,7 +23,7 @@ namespace PhotoFinish.Views
         {
             Dispatcher.Invoke(() =>
             {
-                status.Content = (thread==0 ? "loading " : "initializing ") + completed + " of " + total + " (" + units +")";
+                status.Content = (thread == -1 ? "allocating " : (thread==0 ? "loading " : "initializing ")) + completed + " of " + total + " (" + units +")";
                 progressBar.Maximum = total;
                 progressBar.Value = completed;
             });

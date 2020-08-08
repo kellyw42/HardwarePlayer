@@ -50,13 +50,14 @@ public:
 	VideoSource1(char* videoFilename, progresshandler progress_handler)
 	{
 		this->videoFilename = _strdup(videoFilename);
-
 		fopen_s(&file, videoFilename, "rb");
 		if (file == NULL) MessageBoxA(NULL, videoFilename, "Error: cannot open file", MB_OK);
 
 		_fseeki64(file, 0, SEEK_END);
 		long long length = _ftelli64(file);
 		_fseeki64(file, 0, SEEK_SET);
+
+		progress_handler(-1, 0, length/MegaBytes, "MB");
 		uint8_t *buffer = start_buffer = new uint8_t[length];
 		long long total_read = 0;
 
@@ -119,19 +120,19 @@ public:
 	void Pause()
 	{
 		paused = true;
+	}
+
+	void Wait()
+	{
 		while (!waiting)
 			Sleep(1);
 	}
 
 	void Goto(CUvideotimestamp targetPts)
 	{
-		Pause();
-
 		currentFrameNr = 13 * ((targetPts - 100800) / 46800);
 
 		if (currentFrameNr < 0)
 			currentFrameNr = 0;
-
-		CUvideotimestamp pts = videoPackets[currentFrameNr].timestamp;
 	}
 };

@@ -4,7 +4,7 @@ class VideoConverter
 {
 private:
 	CUmodule colourConversionModule;
-	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance, FinishLine, FinishLine2;
+	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance, FinishLine, FinishLine2, FinishLine3;
 	CUdeviceptr totalLuminance, totalHits;
 
 	void  cudaLaunchNV12toGrayScaleDrv(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstARGB, size_t nDestPitch, int width, int height)
@@ -23,6 +23,15 @@ private:
 		void *args[7] = { &d_srcNV12, &nSourcePitch, &d_dstTop, &d_dstBottom, &nDestPitch, &width, &height};
 
 		CHECK(cuLaunchKernel(NV12ToARGB, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
+	}
+
+	void  cudaLaunchFinishLine3(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstTop, CUdeviceptr d_dstBottom, size_t nDestPitch, int width, int height, float angle)
+	{
+		dim3 block(1, 32, 1);
+		dim3 grid(1, (height + (block.y - 1)) / block.y, 1);
+		void* args[8] = { &d_srcNV12, &nSourcePitch, &d_dstTop, &d_dstBottom, &nDestPitch, &width, &height, &angle };
+
+		CHECK(cuLaunchKernel(FinishLine3, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
 	}
 
 	int cudaLaunchFinishLine(CUdeviceptr d_dst, int width, int height, float top, float bottom, int y1, int y2)
@@ -64,6 +73,7 @@ public:
 		CHECK(cuModuleGetFunction(&NV12ToARGB, colourConversionModule, "NV12ToARGB"));
 		CHECK(cuModuleGetFunction(&FinishLine, colourConversionModule, "FinishLine"));
 		CHECK(cuModuleGetFunction(&FinishLine2, colourConversionModule, "FinishLine2"));
+		CHECK(cuModuleGetFunction(&FinishLine3, colourConversionModule, "FinishLine3"));
 		CHECK(cuModuleGetFunction(&Luminance, colourConversionModule, "Luminance"));
 
 		CHECK(cuMemAlloc(&totalLuminance, 2 * sizeof(long long)));

@@ -2,6 +2,9 @@ using namespace std::chrono;
 
 VideoBuffer* videoBuffer;
 
+#define display_width 1920
+#define  display_height 1080
+
 int frameCount = 0;
 int num, x[3], y[3];
 HWND hwnd;
@@ -62,7 +65,7 @@ void RenderFinishLine(float top, float bottom)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-	glLineWidth(10); // was 10
+	glLineWidth(2); // was 10
 	glColor3f(1.0f, 0.0f, 0.0f);
 	glBegin(GL_LINES);
 	glColor3f(1.0f, 0.0f, 0.0f);
@@ -71,10 +74,10 @@ void RenderFinishLine(float top, float bottom)
 	glEnd();
 }
 
-void RenderBox(RECT box)
+void RenderBox(RECT box, float red, float green, float blue)
 {
 	glLineWidth(1);
-	glColor3f(1.0f, 0.0f, 0.0f);
+	glColor3f(red, green, blue);
 	glBegin(GL_LINE_STRIP);
 	glVertex2f((float)box.left / display_width, 1.0f - (float)box.top / display_height);
 	glVertex2f((float)box.left / display_width, 1.0f - (float)box.bottom / display_height);
@@ -84,13 +87,18 @@ void RenderBox(RECT box)
 	glEnd();
 }
 
+extern int drawing;
+
 void RenderOverlay(VideoFrame *frame)
 {
 	if (videoBuffer->top > 0)
 		RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
 
+	if (drawing == 2)
+		RenderBox(videoBuffer->cropRect, 0, 0, 1);
+
 	if (videoBuffer->searchRect.right != videoBuffer->searchRect.left)
-		RenderBox(videoBuffer->searchRect);
+		RenderBox(videoBuffer->searchRect, 1, 0, 0);
 }
 
 int UpdateFrameRate()
@@ -99,16 +107,18 @@ int UpdateFrameRate()
 	high_resolution_clock::time_point now = high_resolution_clock::now();
 	duration<double> time_span = duration_cast<duration<double>>(now - start);
 
-	if (time_span.count() > 2)
+	if (time_span.count() > 10)
 	{
 		int result = frameCount;
 		frameCount = 0;
 		start = now;
-		return result/2;
+		return result/10;
 	}
 	else
 		return -1;
 }
+
+GLuint prev_pbo = 0;
 
 void RenderFrame(VideoFrame *frame)
 {
@@ -151,6 +161,9 @@ void RenderFrame(VideoFrame *frame)
 
 	//StartTime(6);
 
+
+
+
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame->gl_pbo);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
@@ -160,36 +173,29 @@ void RenderFrame(VideoFrame *frame)
 	glDisable(GL_DEPTH_TEST);
 
 	glBegin(GL_QUADS);
-
-		glTexCoord2f(0, 0); // image top left
+		glTexCoord2f(0 /* + 54*/, 0); // image top left
 		glVertex2f(fx + 0, 1 - fy); // screen
 
 		glTexCoord2f(0, (float)height); // image left bottom
 		glVertex2f(fx + 0, 1 - fy - 2 * h); // screen
 
-		glTexCoord2f((float)width, (float)height); // image bottom right
+		glTexCoord2f((float)width /*- 54*/, (float)height); // image bottom right
 		glVertex2f(fx + w, 1 - fy - 2 * h); // screen
 
 		glTexCoord2f((float)width, 0); // image top right
 		glVertex2f(fx + w, 1 - fy); // screen
-
-	/*
-		glTexCoord2f(0, (float)height);
-		glVertex2f(0, 0);
-
-		glTexCoord2f((float)width, (float)height);
-		glVertex2f(w, 0);
-
-		glTexCoord2f((float)width, 0);
-		glVertex2f(w, 1);
-
-		glTexCoord2f(0, 0);
-		glVertex2f(0, 1);
-	*/
 	glEnd();
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
+
+	//prev_pbo = frame->gl_pbo;
+
+
+
+
+
+
 
 	//EndTime(6);
 
@@ -218,6 +224,8 @@ void RenderFrame(VideoFrame *frame)
 
 LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
+
+
 void CreateWin32Window(int monitor)
 {
 	HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -235,16 +243,21 @@ void CreateWin32Window(int monitor)
 	wc.style = CS_OWNDC;
 	RegisterClass(&wc);
 
-	RECT rect;
-	SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
-	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-	hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
-
-	SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
+	//RECT rect;
+	//SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
+	//AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
+	hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_POPUP | WS_VISIBLE, x[monitor], y[monitor], display_width, display_height, NULL, NULL, hInstance, NULL);
+	//hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
+	//SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
 
 	ShowWindow(hwnd, SW_SHOW);
 
 	hdc = GetDC(hwnd);
+
+	RECT client_display;
+	GetClientRect(hwnd, &client_display);
+	//assert(display_width == client_display.right - client_display.left);
+	//assert(display_height == client_display.bottom - client_display.top);
 
 	PIXELFORMATDESCRIPTOR pfd = { 0 };
 	pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);

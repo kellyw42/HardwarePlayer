@@ -69,7 +69,7 @@ public:
 	CUvideotimestamp displayed;
 	float top, bottom;
 	VideoDecoder* decoder;
-	RECT searchRect;
+	RECT searchRect, cropRect;
 	int width, height;
 
 	VideoBuffer(eventhandler event_handler, timehandler time_handler)
@@ -92,10 +92,36 @@ public:
 
 		decoder->OpenVideo(source);
 
-		decoder->Init();
+		sprintf(finish_filename, "%.55s.MTS.finishline", source->videoFilename);
 
-		width = decoder->decoderParams.ulTargetWidth; // source->format.display_area.right - source->format.display_area.left;
-		height = decoder->decoderParams.ulTargetHeight; //  source->format.display_area.bottom - source->format.display_area.top;
+		FILE* file = fopen(finish_filename, "r");
+		if (file != 0)
+		{
+			fscanf(file, "%f,%f", &top, &bottom);
+			fclose(file);
+		}
+		else
+			top = bottom = -10;
+
+		RECT cropRect;
+		if (top > 0)
+		{
+			cropRect.left = min(top, bottom) - 10;
+			cropRect.right = max(top, bottom) + 10;
+		}
+		else
+		{
+			cropRect.left = source->format.display_area.left;
+			cropRect.right = source->format.display_area.right;
+		}
+
+		cropRect.top = source->format.display_area.top;
+		cropRect.bottom = source->format.display_area.bottom;
+
+		decoder->Init(cropRect);
+
+		width = decoder->decoderParams.ulTargetWidth;
+		height = decoder->decoderParams.ulTargetHeight;
 		//width = source->format.display_area.right - source->format.display_area.left;
 		//height = source->format.display_area.bottom - source->format.display_area.top;
 
@@ -104,16 +130,7 @@ public:
 
 		decoder->Start();
 
-		sprintf(finish_filename, "%.55s.MTS.finishline", source->videoFilename);
 
-		FILE *file = fopen(finish_filename, "r");
-		if (file != 0)
-		{
-			fscanf(file, "%f,%f", &top, &bottom);
-			fclose(file);
-		}
-		else
-			top = bottom = -10;
 
 		videoConverter = new VideoConverter();
 
@@ -126,6 +143,24 @@ public:
 		delete videoConverter;
 		for (int i = 0; i < NumFrames; i++)
 			delete frames[i];
+	}
+
+	VideoFrame * Crop(CUvideotimestamp currentPts)
+	{
+		decoder->Pause();
+
+		decoder->Init(cropRect);
+		
+		width = decoder->decoderParams.ulTargetWidth; 
+		height = decoder->decoderParams.ulTargetHeight; 
+
+		for (int i = 0; i < NumFrames; i++)
+		{
+			delete frames[i];
+			frames[i] = new VideoFrame(width, height / 2);
+		}
+
+		return GotoTime(currentPts);
 	}
 
 	VideoFrame * GotoTime(CUvideotimestamp targetPts)

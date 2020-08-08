@@ -2,7 +2,8 @@ enum Mode { PLAYING, PAUSED, REWINDING, SEARCHING };
 
 using namespace std::chrono;
 
-bool drawing = false;
+int drawing = 0;
+
 int speed;
 Mode mode = PAUSED;
 
@@ -270,6 +271,9 @@ void EventLoop()
 	}
 }
 
+
+
+
 void StartRectangle(LPARAM lParam)
 {
 	if (videoBuffer == NULL)
@@ -278,23 +282,44 @@ void StartRectangle(LPARAM lParam)
 	videoBuffer->searchRect.left = videoBuffer->searchRect.right = GET_X_LPARAM(lParam);
 	videoBuffer->searchRect.top = videoBuffer->searchRect.bottom = GET_Y_LPARAM(lParam);
 
-	drawing = true;
+	drawing = 1;
+	RenderFrame(latest);
+}
+
+void StartCrop(LPARAM lParam)
+{
+	if (videoBuffer == NULL)
+		return;
+
+	videoBuffer->cropRect.left = videoBuffer->cropRect.right = GET_X_LPARAM(lParam);
+	videoBuffer->cropRect.top = videoBuffer->cropRect.bottom = GET_Y_LPARAM(lParam);
+
+	drawing = 2;
 	RenderFrame(latest);
 }
 
 void StretchRectangle(LPARAM lParam)
 {
-	if (drawing)
+	if (drawing == 1)
 	{
 		videoBuffer->searchRect.right = GET_X_LPARAM(lParam);
 		videoBuffer->searchRect.bottom = GET_Y_LPARAM(lParam);
+		RenderFrame(latest);
+	}
+	else if (drawing == 2)
+	{
+		videoBuffer->cropRect.right = GET_X_LPARAM(lParam);
+		videoBuffer->cropRect.bottom = GET_Y_LPARAM(lParam);
+		int x = LOWORD(lParam);
+		int y = HIWORD(lParam);
+
 		RenderFrame(latest);
 	}
 }
 
 void DoneRectangle()
 {
-	drawing = false;
+	drawing = 0;
 }
 
 void MoveLine(char direction)
@@ -303,7 +328,7 @@ void MoveLine(char direction)
 		return;
 
 	if (videoBuffer->top == 0)
-		videoBuffer->top = videoBuffer->bottom = (float)display_width / 2;
+		videoBuffer->top = videoBuffer->bottom = 1920 / 2;
 
 	if (direction == 'Q' || direction == 'A')
 		videoBuffer->top--;
@@ -326,8 +351,15 @@ int MouseEvent(UINT Msg, LPARAM lParam)
 	case WM_LBUTTONDOWN:
 		StartRectangle(lParam);
 		return 0;
+	case WM_RBUTTONDOWN:
+		StartCrop(lParam);
+		return 0;
 	case WM_MOUSEMOVE:
 		StretchRectangle(lParam);
+		return 0;
+	case WM_RBUTTONUP:
+		drawing = 0;
+		RenderFrame(videoBuffer->Crop(latest->pts));
 		return 0;
 	case WM_LBUTTONUP:
 		DoneRectangle();
@@ -371,6 +403,8 @@ LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
 		return Keydown(wParam, lParam);
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONUP:
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
 	case WM_MOUSEMOVE:
 		return MouseEvent(Msg, lParam);
 	default:

@@ -21,6 +21,9 @@ public:
 
 	void enqueue(const CUVIDPARSERDISPINFO *pPicParams)
 	{
+		if (paused)
+			return;
+
 		//Trace2("\t\t\taIsFrameInUse_[%d] = true;", pPicParams->picture_index);
 		aIsFrameInUse_[pPicParams->picture_index] = true;
 		
@@ -84,18 +87,21 @@ public:
 		aIsFrameInUse_[nPictureIndex] = false;
 	}
 
-	void waitUntilFrameAvailable(int nPictureIndex)
+	bool waitUntilFrameAvailable(int nPictureIndex)
 	{
 		while (aIsFrameInUse_[nPictureIndex] && !paused)
 			Sleep(1);
+
+		return !aIsFrameInUse_[nPictureIndex];
 	}
 
 	void Pause()
 	{
+		nFramesInQueue_ = 0;
 		paused = true;
 	}
 
-	void Start()
+	void Clear()
 	{
 		for (int i = 0; i < cnMaximumSize; i++)
 			releaseFrame(i);

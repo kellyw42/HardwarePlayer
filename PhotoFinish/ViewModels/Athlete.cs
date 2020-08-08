@@ -188,6 +188,7 @@ namespace PhotoFinish
                 inFile = File.Open(@"C:\PhotoFinish\SeasonReport_Season Best.xlsx", FileMode.Open, FileAccess.Read);
                 reader = ExcelReaderFactory.CreateReader(inFile, new ExcelReaderConfiguration());
                 reader.Read();
+                reader.Read();
 
                 //var conn = new OleDbConnection("Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\\PhotoFinish\\SeasonReport_Season Best.xlsx;Extended Properties='Excel 12.0;IMEX=1;'");
                 //conn.Open();
@@ -196,7 +197,8 @@ namespace PhotoFinish
 
                 while (reader.Read())
                 {
-                    var num = int.Parse(reader.GetString(0));
+                    var first = reader.GetString(0);
+                    var num = int.Parse(first);
                     if (athletes.ContainsKey(num))
                     {
                         var evnt = reader.GetString(6);
@@ -213,7 +215,7 @@ namespace PhotoFinish
                 reader.Close();
                 inFile.Close();
             }
-            catch (Exception)
+            catch (System.TimeoutException e)
             {
                 // too bad, probably file format error
             }

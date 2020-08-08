@@ -117,6 +117,56 @@ extern "C" __global__ void NV12ToARGB(const unsigned char* srcImage, size_t nSou
 	dstImage[offset + 1] = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
 }
 
+extern "C" __global__ void FinishLine3(const unsigned char* srcImage, size_t nSourcePitch,
+	unsigned int* dstImageTop, unsigned int *dstImageBottom, size_t nDestPitch,
+	unsigned int width, unsigned int height, float angle)
+{
+	// Pad borders with duplicate pixels, and we multiply by 2 because we process 2 pixels per thread
+	const int y = blockIdx.y *  blockDim.y + threadIdx.y;
+
+	if (y >= height)
+		return;
+
+	for (int dx=0; dx<width; dx+=2)
+	{
+	    int x = y * angle + dx;
+
+		unsigned int yuv101010Pel[2];
+		yuv101010Pel[0] = (srcImage[y * nSourcePitch + x]) << 2;
+		yuv101010Pel[1] = (srcImage[y * nSourcePitch + x + 1]) << 2;
+
+		const size_t chromaOffset = nSourcePitch * height;
+
+		int y_chroma = ((y >> 2) << 1) | (y & 1);
+
+		unsigned int chromaCb = srcImage[chromaOffset + y_chroma * nSourcePitch + x];
+		unsigned int chromaCr = srcImage[chromaOffset + y_chroma * nSourcePitch + x + 1];
+
+		yuv101010Pel[0] |= (chromaCb << (COLOR_COMPONENT_BIT_SIZE + 2));
+		yuv101010Pel[0] |= (chromaCr << ((COLOR_COMPONENT_BIT_SIZE << 1) + 2));
+		yuv101010Pel[1] |= (chromaCb << (COLOR_COMPONENT_BIT_SIZE + 2));
+		yuv101010Pel[1] |= (chromaCr << ((COLOR_COMPONENT_BIT_SIZE << 1) + 2));
+
+		unsigned int yuvi[6];
+		float red[2], green[2], blue[2];
+
+		yuvi[0] = (yuv101010Pel[0] & COLOR_COMPONENT_MASK);
+		yuvi[1] = ((yuv101010Pel[0] >> COLOR_COMPONENT_BIT_SIZE)        & COLOR_COMPONENT_MASK);
+		yuvi[2] = ((yuv101010Pel[0] >> (COLOR_COMPONENT_BIT_SIZE << 1)) & COLOR_COMPONENT_MASK);
+		yuvi[3] = (yuv101010Pel[1] & COLOR_COMPONENT_MASK);
+		yuvi[4] = ((yuv101010Pel[1] >> COLOR_COMPONENT_BIT_SIZE)        & COLOR_COMPONENT_MASK);
+		yuvi[5] = ((yuv101010Pel[1] >> (COLOR_COMPONENT_BIT_SIZE << 1)) & COLOR_COMPONENT_MASK);
+
+		YUV2RGB(&yuvi[0], &red[0], &green[0], &blue[0]);
+		YUV2RGB(&yuvi[3], &red[1], &green[1], &blue[1]);
+
+		unsigned int* dstImage = (y & 1) ? dstImageBottom : dstImageTop;
+		int offset = (y >> 1) * width + dx;
+		dstImage[offset] = RGBA_pack_10bit(red[0], green[0], blue[0], ((unsigned int)0xff << 24));
+		dstImage[offset + 1] = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
+	}
+}
+
 extern "C" __global__ void FinishLine2(unsigned int* dstImage, unsigned int width, unsigned int height, float top, float bottom, int y1, int y2)
 {
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;

@@ -28,8 +28,33 @@ public:
 		delete source;
 	}
 
-	void Init()
+	void Init(RECT crop)
 	{
+		if (crop.left >= crop.right || crop.top >= crop.bottom)
+		{
+			crop.left = source->format.display_area.left;
+			crop.right = source->format.display_area.right;
+			crop.top = source->format.display_area.top;
+			crop.bottom = source->format.display_area.bottom;
+		}
+
+		while (crop.left % 4 != 0)
+			crop.left++;
+
+		while ((crop.right - crop.left) % 4 != 0)
+			crop.right--;
+
+		while (crop.top % 4 != 0)
+			crop.top++;
+
+		while ((crop.bottom - crop.top) % 4 != 0)
+			crop.bottom --;
+
+		int even_top = crop.top;
+		int even_height = crop.bottom - crop.top;
+		int quad_height = even_height % 4;
+		assert(even_top % 2 == 0 && even_height % 4 == 0);
+
 		CUVIDEOFORMATEX formatEx;
 		memset(&formatEx, 0, sizeof(CUVIDEOFORMATEX));
 		formatEx.format = source->format;
@@ -60,20 +85,10 @@ public:
 		decoderParams.ulWidth = source->format.coded_width;
 		decoderParams.ulHeight = source->format.coded_height;
 		
-		double cropLeft = 0, cropTop = 0, cropRight = 1.0, cropBotton = 1.0;
-
-		if (source->format.display_area.right == 1920)
-		{
-			cropLeft = 0.25;
-			cropRight = 0.75;
-			cropTop = 0.25;
-			cropBotton = 0.75;
-		}
-
-		decoderParams.display_area.left = source->format.display_area.right * cropLeft;
-		decoderParams.display_area.right = source->format.display_area.right * cropRight;
-		decoderParams.display_area.top = source->format.display_area.bottom * cropTop;
-		decoderParams.display_area.bottom = source->format.display_area.bottom * cropBotton;
+		decoderParams.display_area.left = crop.left;
+		decoderParams.display_area.right = crop.right;
+		decoderParams.display_area.top = crop.top;
+		decoderParams.display_area.bottom = crop.bottom;
 
 		decoderParams.target_rect.left = 0;
 		decoderParams.target_rect.top = 0;
@@ -103,29 +118,34 @@ public:
 
 	void Destroy()
 	{
-		frameQueue->Pause();
-		source->Pause();
 		cuvidDestroyVideoParser(parser);
 		cuvidDestroyDecoder(decoder);
 	}
 
 	void Start()
 	{
-		Create(); // needed?
+		Create();
 		source->Start();
 	}
 
-	void Pause()
+	void Pause() // but don't destroy!
 	{
-		Destroy(); // needed?
-		frameQueue->Start();
+		source->Pause(); // tell source not to generate any more frames
+		frameQueue->Pause(); // release source thread from waiting for spare frame
+		source->Wait(); // wait for source to be waiting
 	}
 
 	CUvideotimestamp Goto(CUvideotimestamp targetPts)
 	{
 		Pause();
+		
+		Destroy(); 
+		Create();
+		
+		frameQueue->Clear();
 		source->Goto(targetPts);
-		Start();
+		source->Start();
+
 		while (1)
 		{
 			CUvideotimestamp firstPts = frameQueue->Peek();
@@ -168,9 +188,11 @@ int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 int CUDAAPI HandlePictureDecode(void *userData, CUVIDPICPARAMS * pPicParams)
 {
 	VideoDecoder *container = (VideoDecoder*)userData;
-	container->frameQueue->waitUntilFrameAvailable(pPicParams->CurrPicIdx);
-	//Trace2("\tHandlePictureDecode(%d)", pPicParams->CurrPicIdx);
-	CHECK(cuvidDecodePicture(container->decoder, pPicParams));
+	if (container->frameQueue->waitUntilFrameAvailable(pPicParams->CurrPicIdx))
+	{
+		//Trace2("\tHandlePictureDecode(%d)", pPicParams->CurrPicIdx);
+		CHECK(cuvidDecodePicture(container->decoder, pPicParams));
+	}
 	return true;
 }
 
