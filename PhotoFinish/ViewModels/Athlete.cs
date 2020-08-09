@@ -157,16 +157,11 @@ namespace PhotoFinish
             var inFile = File.Open(@"C:\PhotoFinish\MemberReport.xlsx", FileMode.Open, FileAccess.Read);
             var reader = ExcelReaderFactory.CreateReader(inFile, new ExcelReaderConfiguration());
             reader.Read();
-            //var conn = new OleDbConnection(@"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\PhotoFinish\MemberReport.xlsx;Extended Properties='Excel 12.0;IMEX=1;'");
-            //conn.Open();
-            //var cmd = new OleDbCommand("select * from [Member Report$]", conn);
-            //var reader2 = cmd.ExecuteReader();
             while (reader.Read())
             {
                 var num = int.Parse(reader.GetString(0));
                 var fname = reader.GetString(1);
                 var surname = reader.GetString(2);
-                var dob = DateTime.Parse(reader.GetString(3));
                 var age = reader.GetString(4);
                 var gender = reader.GetString(6);
                 var email = reader.GetString(16);
@@ -181,44 +176,31 @@ namespace PhotoFinish
             }
             reader.Close();
             inFile.Close();
-            //conn.Close();
 
-            try
+            inFile = File.Open(@"C:\PhotoFinish\SeasonReport_Season Best.xlsx", FileMode.Open, FileAccess.Read);
+            reader = ExcelReaderFactory.CreateReader(inFile, new ExcelReaderConfiguration());
+            reader.Read();
+            reader.Read();
+
+            while (reader.Read())
             {
-                inFile = File.Open(@"C:\PhotoFinish\SeasonReport_Season Best.xlsx", FileMode.Open, FileAccess.Read);
-                reader = ExcelReaderFactory.CreateReader(inFile, new ExcelReaderConfiguration());
-                reader.Read();
-                reader.Read();
-
-                //var conn = new OleDbConnection("Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\\PhotoFinish\\SeasonReport_Season Best.xlsx;Extended Properties='Excel 12.0;IMEX=1;'");
-                //conn.Open();
-                //var cmd = new OleDbCommand("select * from [Season Best$A2:K]", conn);
-                //var reader2 = cmd.ExecuteReader();
-
-                while (reader.Read())
+                var first = reader.GetString(0);
+                var num = int.Parse(first);
+                if (athletes.ContainsKey(num))
                 {
-                    var first = reader.GetString(0);
-                    var num = int.Parse(first);
-                    if (athletes.ContainsKey(num))
-                    {
-                        var evnt = reader.GetString(6);
-                        var time = reader.GetString(10);
-                        TimeSpan best;
-                        if (time.Contains(":"))
-                            best = TimeSpan.ParseExact(time, "m':'ss'.'ff", null);
-                        else
-                            best = TimeSpan.FromSeconds(double.Parse(time));
-                        var a = athletes[num];
-                        a.PBs[evnt] = best;
-                    }
+                    var evnt = reader.GetString(6);
+                    var time = reader.GetString(10);
+                    TimeSpan best;
+                    if (time.Contains(":"))
+                        best = TimeSpan.ParseExact(time, "m':'ss'.'ff", null);
+                    else
+                        best = TimeSpan.FromSeconds(double.Parse(time));
+                    var a = athletes[num];
+                    a.PBs[evnt] = best;
                 }
-                reader.Close();
-                inFile.Close();
             }
-            catch (System.TimeoutException e)
-            {
-                // too bad, probably file format error
-            }
+            reader.Close();
+            inFile.Close();
         }
 
         public static Athlete Lookup(int number, Meet meet)

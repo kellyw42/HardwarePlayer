@@ -200,6 +200,7 @@ void EventLoop()
 						SetActiveWindow(hwnd);
 						SetFocus(hwnd);
 						videoBuffer = (VideoBuffer*)msg.wParam;
+						assert(videoBuffer != NULL);
 						CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
 						RenderFrame(videoBuffer->GotoTime(pts));
 						break;

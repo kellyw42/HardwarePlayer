@@ -36,56 +36,86 @@ private:
 				waiting = false;
 			}
 			else
-				handleVideoData(decoder, &videoPackets[currentFrameNr++]);
+			{
+				if (currentFrameNr == videoLastPacket-1)
+					// At end of file ...
+					Sleep(100);
+				else
+				{ 
+					if (startFrame > currentFrameNr || currentFrameNr >= endFrame)
+						LoadMoreFrames(currentFrameNr);
+					assert(startFrame <= currentFrameNr && currentFrameNr < endFrame);
+					handleVideoData(decoder, &videoPackets[currentFrameNr++]);
+				}
+			}
 		}
 	}
-
-#define MegaBytes 1024000000
-#define BLOCK 0x3F
-
 public:
 	char *videoFilename;
 	CUVIDEOFORMAT format;
 
+#define FrameBufferSize 100000000 // 100 Mbytes
+
+	long startFrame = 0, endFrame = 0;
+	long long *offsets;
+	uint8_t* bufferStart;
+	CUvideotimestamp firstPts, lastPts;
+
 	VideoSource1(char* videoFilename, progresshandler progress_handler)
 	{
 		this->videoFilename = _strdup(videoFilename);
+		bufferStart = new uint8_t[FrameBufferSize];
+
 		fopen_s(&file, videoFilename, "rb");
-		if (file == NULL) MessageBoxA(NULL, videoFilename, "Error: cannot open file", MB_OK);
+		if (file == NULL) 
+			MessageBoxA(NULL, videoFilename, "Error: cannot open file", MB_OK);
 
-		_fseeki64(file, 0, SEEK_END);
-		long long length = _ftelli64(file);
-		_fseeki64(file, 0, SEEK_SET);
+		fread(&format, sizeof(format), 1, file);
+		fread(&videoLastPacket, sizeof(long), 1, file);
 
-		progress_handler(-1, 0, length/MegaBytes, "MB");
-		uint8_t *buffer = start_buffer = new uint8_t[length];
-		long long total_read = 0;
+		videoPackets = new CUVIDSOURCEDATAPACKET[videoLastPacket];
+		fread(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
 
-		while (total_read < length)
-		{
-			progress_handler(0, total_read/MegaBytes, length/MegaBytes, "MB");
-			size_t read_bytes = fread(buffer + total_read, 1, min(102400000LL,length-total_read), file);
-			total_read += read_bytes;
-		}
-		progress_handler(0, total_read / MegaBytes, length / MegaBytes, "MB");
+		offsets = new long long[videoLastPacket+1];
+		offsets[0] = _ftelli64(file);
+		for (long i = 1; i <= videoLastPacket; i++)
+			offsets[i] = offsets[i - 1] + videoPackets[i - 1].payload_size;
 
-		format = *(CUVIDEOFORMAT*)buffer;
-		buffer += sizeof(format);
+		firstPts = LLONG_MAX;
+		for (int i = 0; i < 5; i++)
+			if (videoPackets[i].timestamp < firstPts)
+				firstPts = videoPackets[i].timestamp;
 
-		videoLastPacket = *(long*)buffer;
-		buffer += sizeof(long);
-		videoPackets = (CUVIDSOURCEDATAPACKET*)buffer;
-		buffer += videoLastPacket * sizeof(CUVIDSOURCEDATAPACKET);
+		lastPts = LLONG_MIN;
+		for (int i = 1; i < 5; i++)
+			if (videoPackets[videoLastPacket-i].timestamp > lastPts)
+				lastPts = videoPackets[videoLastPacket-i].timestamp;
 
-		for (long i = 0; i < videoLastPacket; i++)
-		{
-			if (((~i) & BLOCK) == BLOCK)
-				progress_handler(1, i, videoLastPacket, "packets");
-			videoPackets[i].payload = buffer;
-			buffer += videoPackets[i].payload_size;
-		}
-		progress_handler(1, videoLastPacket, videoLastPacket, "packets");
+		lastPts -= 3600 * 4; // avoid last 4 frames (diffucult to complete flush pipeline)
+
 		progress_handler(2, 0, 0, "Done!");
+	}
+
+	void LoadMoreFrames(long start)
+	{
+		startFrame = start;
+
+		_fseeki64(file, offsets[start], SEEK_SET);
+		size_t bytesRead = fread(bufferStart, 1, FrameBufferSize, file);
+
+		uint8_t* buffer = bufferStart;
+		uint8_t* bufferEnd = buffer + bytesRead;
+		endFrame = startFrame;
+		while (buffer < bufferEnd)
+		{
+			videoPackets[endFrame].payload = buffer; 
+			buffer += videoPackets[endFrame].payload_size;
+			endFrame++;
+		}
+		if (buffer > bufferEnd)
+		    endFrame--;
+
+		assert(startFrame <= start && start < endFrame);
 	}
 
 	~VideoSource1()
@@ -130,7 +160,7 @@ public:
 
 	void Goto(CUvideotimestamp targetPts)
 	{
-		currentFrameNr = 13 * ((targetPts - 100800) / 46800);
+		currentFrameNr = (long)(13 * ((targetPts - 100800) / 46800));
 
 		if (currentFrameNr < 0)
 			currentFrameNr = 0;

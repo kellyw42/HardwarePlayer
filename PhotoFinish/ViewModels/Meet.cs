@@ -502,21 +502,22 @@ namespace PhotoFinish
                 var start = CurrentRace.StartTime.filename;
                 var finish = CurrentRace.FinishFile;
 
-                Task.Run(() =>
-                {
+                //Task.Run(() =>
+                //{
                     var startSource = NativeVideo.LoadVideo(start, progress.StartProgressHandler);
                     startPlayer = NativeVideo.OpenVideo(startSource, StartEventHandler, StartTimeHandler);
-                });
+                //});
 
-                Task.Run(() =>
-                {
+                //Task.Run(() =>
+                //{
                     var finishSource = NativeVideo.LoadVideo(finish, progress.FinishProgressHandler);
                     finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler);
-                });
+                //});
 
-                progress.ShowDialog();
+                //progress.ShowDialog();
             }
 
+            System.Diagnostics.Debug.Assert(startPlayer != null);
             NativeVideo.GotoTime(startPlayer, CurrentRace.StartTime.pts);
         }
 

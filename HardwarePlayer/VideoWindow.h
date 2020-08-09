@@ -127,7 +127,7 @@ void RenderFrame(VideoFrame *frame)
 	if (rate > 0)
 	{
 		char msg[128];
-		sprintf(msg, "%d fps, frame %p, pts=%ld, hits=%d", rate, frame, frame->pts, frame->hits);
+		sprintf(msg, "%d fps, frame %p, pts=%lld, hits=%d", rate, frame, frame->pts, frame->hits);
 		SetWindowTextA(hwnd, msg);
 	}
 

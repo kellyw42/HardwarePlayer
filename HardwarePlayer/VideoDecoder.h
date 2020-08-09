@@ -23,9 +23,10 @@ public:
 
 	~VideoDecoder()
 	{
-		Destroy();
-		delete frameQueue;
+		Pause();
 		delete source;
+		delete frameQueue;
+		Destroy();
 	}
 
 	void Init(RECT crop)
@@ -85,10 +86,10 @@ public:
 		decoderParams.ulWidth = source->format.coded_width;
 		decoderParams.ulHeight = source->format.coded_height;
 		
-		decoderParams.display_area.left = crop.left;
-		decoderParams.display_area.right = crop.right;
-		decoderParams.display_area.top = crop.top;
-		decoderParams.display_area.bottom = crop.bottom;
+		decoderParams.display_area.left = (short)crop.left;
+		decoderParams.display_area.right = (short)crop.right;
+		decoderParams.display_area.top = (short)crop.top;
+		decoderParams.display_area.bottom = (short)crop.bottom;
 
 		decoderParams.target_rect.left = 0;
 		decoderParams.target_rect.top = 0;
@@ -179,7 +180,7 @@ public:
 int CUDAAPI HandleVideoData(void *userData, CUVIDSOURCEDATAPACKET *pPacket)
 {
 	//Trace2("HandleVideoData(%lld)", pPacket->timestamp);
-	VideoDecoder *container = (VideoDecoder*)userData;
+	VideoDecoder* container = (VideoDecoder*)userData;
 	CHECK(cuvidParseVideoData(container->parser, pPacket));
 	//Trace2("return from cuvidParseVideoData (%lld)", pPacket->timestamp);
 	return true;

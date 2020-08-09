@@ -55,6 +55,9 @@ private:
 
 	VideoFrame* NextUntil(CUvideotimestamp targetPts, bool search)
 	{
+		if (targetPts > source->lastPts)
+			targetPts = source->lastPts;
+
 		while (true)
 		{
 			VideoFrame *cached = GetFrame(targetPts);
@@ -66,6 +69,7 @@ private:
 	}
 
 public:
+	VideoSource1* source;
 	CUvideotimestamp displayed;
 	float top, bottom;
 	VideoDecoder* decoder;
@@ -88,6 +92,7 @@ public:
 
 	void Open(VideoSource1* source)
 	{
+		this->source = source;
 		decoder = new VideoDecoder();
 
 		decoder->OpenVideo(source);
@@ -106,8 +111,8 @@ public:
 		RECT cropRect;
 		if (top > 0)
 		{
-			cropRect.left = min(top, bottom) - 10;
-			cropRect.right = max(top, bottom) + 10;
+			cropRect.left = (long)min(top, bottom) - 10;
+			cropRect.right = (long)max(top, bottom) + 10;
 		}
 		else
 		{
@@ -122,19 +127,13 @@ public:
 
 		width = decoder->decoderParams.ulTargetWidth;
 		height = decoder->decoderParams.ulTargetHeight;
-		//width = source->format.display_area.right - source->format.display_area.left;
-		//height = source->format.display_area.bottom - source->format.display_area.top;
 
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(width, height/2);
 
 		decoder->Start();
 
-
-
 		videoConverter = new VideoConverter();
-
-		//return FirstFrame();
 	}
 
 	~VideoBuffer()
@@ -165,8 +164,11 @@ public:
 
 	VideoFrame * GotoTime(CUvideotimestamp targetPts)
 	{
-		if (targetPts < 93600)
-			targetPts = 93600;
+		if (targetPts < source->firstPts)
+			targetPts = source->firstPts;
+
+		if (targetPts > source->lastPts)
+			targetPts = source->lastPts;
 
 		VideoFrame *cached = GetFrame(targetPts);
 		if (cached != NULL)
@@ -175,11 +177,6 @@ public:
 		CUvideotimestamp fetchedPts = decoder->Goto(targetPts);
 		assert(fetchedPts <= targetPts);
 		return NextUntil(targetPts, false);
-	}
-
-	VideoFrame * SkipFrames(int count)
-	{
-		return NextUntil(displayed + TIME_PER_FIELD * count, false);
 	}
 
 	void Up()

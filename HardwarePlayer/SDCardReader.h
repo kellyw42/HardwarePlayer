@@ -88,7 +88,7 @@ private:
 			long long file_size = _ftelli64(file);
 			_fseeki64(file, 0, SEEK_SET);
 
-			size_t file_read = 0;
+			long long file_read = 0;
 
 			if (i == 0)
 			{
@@ -106,7 +106,7 @@ private:
 
 				progress_handler(0, total_read/1024000, totalSize/1024000, "MB");
 
-				if (waiting & bytes_read > 0)
+				if (waiting && bytes_read > 0)
 					SetEvent(more_packets_ready);
 			}
 

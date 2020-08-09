@@ -93,7 +93,7 @@ public:
 		cuMemcpyDtoH(host, device, height*pitch * sizeof(uint32_t));
 
 		char name[256];
-		sprintf(name, "image%d.ppm", pts);
+		sprintf(name, "image%lld.ppm", pts);
 
 		FILE *file = fopen(name, "wb");
 		if (file == NULL) MessageBoxA(NULL, name, "Error: cannot open file", MB_OK);

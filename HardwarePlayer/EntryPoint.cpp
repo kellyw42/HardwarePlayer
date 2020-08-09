@@ -74,6 +74,7 @@ extern "C" __declspec(dllexport) void Close(VideoBuffer* buffer)
 
 extern "C" __declspec(dllexport) void GotoTime(VideoBuffer *newBuffer, CUvideotimestamp pts)
 {
+	assert(newBuffer != NULL);
 	PostThreadMessage(eventLoopThread, Messages::GOTO, (WPARAM)newBuffer, (LPARAM)pts);
 }
 
