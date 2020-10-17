@@ -1,11 +1,14 @@
 #pragma once
 
+extern int dx;
+
 class VideoConverter
 {
 private:
 	CUmodule colourConversionModule;
 	CUfunction NV12ToARGB, NV12ToGrayScale, Luminance, FinishLine, FinishLine2, FinishLine3;
 	CUdeviceptr totalLuminance, totalHits;
+	AthleteDetector* athleteDetector;
 
 	void  cudaLaunchNV12toGrayScaleDrv(CUdeviceptr d_srcNV12, size_t nSourcePitch, CUdeviceptr d_dstARGB, size_t nDestPitch, int width, int height)
 	{
@@ -43,11 +46,11 @@ private:
 		return hostHits;
 	}
 
-	void cudaLaunchFinishLine2(CUdeviceptr d_dst, int width, int height, float top, float bottom, int y1, int y2)
+	void cudaLaunchFinishLine2(CUdeviceptr d_dst, int width, int height, float top, float bottom, int y1, int y2, uchar* mask, size_t step)
 	{
 		dim3 block(32, 32, 1);
 		dim3 grid((width + (block.x - 1)) / block.x, (height + (block.y - 1)) / block.y, 1);
-		void *args[7] = { &d_dst, &width, &height, &top, &bottom, &y1, &y2};
+		void *args[9] = { &d_dst, &width, &height, &top, &bottom, &y1, &y2, &mask, &step};
 
 		CHECK(cuLaunchKernel(FinishLine2, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, 0, args, 0));
 	}
@@ -65,7 +68,7 @@ private:
 	}
 
 public:
-	VideoConverter()
+	VideoConverter(int track_finish)
 	{
 		CHECK(cuModuleLoad(&colourConversionModule, "C:\\Users\\kellyw\\Dropbox\\000000 AranaLA\\AAAAA\\HardwarePlayer\\HardwarePlayer\\ColourConversion.cubin"));
 
@@ -78,6 +81,11 @@ public:
 
 		CHECK(cuMemAlloc(&totalLuminance, 2 * sizeof(long long)));
 		CHECK(cuMemAlloc(&totalHits, sizeof(int)));
+
+		if (track_finish)
+			athleteDetector = new AthleteDetector();
+		else
+			athleteDetector = NULL;
 	}
 
 	~VideoConverter()
@@ -141,8 +149,49 @@ public:
 
 		cudaLaunchNV12toARGBDrv(YUVFramePtr, YUVPitch, RGBTopPtr, RGBBottomPtr, width*4, width, height);
 
-		if (width > 1500)
-		{
+		double r = 5;
+
+		//if (width < 1800)
+		if (athleteDetector != NULL)
+		{ 
+/*
+			double x0 = top;
+			double y0 = 0;
+			double x1 = bottom;
+			double y1 = height;
+			double zy = (y1 - y0);
+			double zx = (x1 - x0);
+			double len = sqrt(zx * zx + zy * zy);
+			zx = zx / len;
+			zy = zy / len;
+			double P0x = x0 + r * zx;
+			double P0y = y0 + r * zy;
+			double P1x = x0 - r * zx;
+			double P1y = y0 - r * zy;
+			double P2x = x1 - r * zx;
+			double P2y = y1 - r * zy;
+			double P3x = x1 + r * zx;
+			double P3y = y1 + r * zy;
+
+			double s = 1.0 / (2.0 * r + len);
+
+			double E0x = s * (P0y - P3y);
+			double E0y = s * (P3x - P0x);
+			double E0z = s * (P0x* P3y - P0y * P3x);
+
+			double E1x = s * (P2y - P1y);
+			double E1y = s * (P1x - P2x);
+			double E1z = s * (P2x* P1y - P2y * P1x);
+*/
+
+			//auto maskTop = athleteDetector->GetDetections(RGBTopPtr, topFrame, width, height / 2);
+
+			//cudaLaunchFinishLine2(RGBTopPtr, width, height / 2, top, bottom, range.top / 2, range.bottom / 2, (uchar*)maskTop.data, maskTop.step);
+			
+			//auto maskBottom = athleteDetector->GetDetections(RGBBottomPtr, bottomFrame, width, height / 2);
+
+			//cudaLaunchFinishLine2(RGBBottomPtr, width, height / 2, top, bottom, range.top / 2, range.bottom / 2, (uchar*)maskBottom.data, maskBottom.step);
+
 			topFrame->hits = cudaLaunchFinishLine(RGBTopPtr, width, height / 2, top, bottom, range.top/2, range.bottom/2);
 			bottomFrame->hits = cudaLaunchFinishLine(RGBBottomPtr, width, height / 2, top, bottom, range.top/2, range.bottom/2);
 		}
@@ -153,7 +202,8 @@ public:
 		//cuMemcpyDtoH(topFrame->host,    RGBTopPtr,    height / 2 * width * sizeof(uint32_t));
 		//cuMemcpyDtoH(bottomFrame->host, RGBBottomPtr, height / 2 * width * sizeof(uint32_t));
 
-		//DownloadFrame(topFrame->pts, RGBTopPtr, width, width, height/2);
+		//if (dx > 0 && width == 1920)
+	    //DownloadFrame(topFrame->pts, RGBTopPtr, width, width, height/2);
 		//DownloadFrame(bottomFrame->pts, RGBBottomPtr, width, width, height/2);
 
 		CHECK(cuGraphicsUnmapResources(2, resources, 0));

@@ -33,7 +33,7 @@ void Render()
 			if (speed == 1)
 			{
 				frame = videoBuffer->NextFrame(0);
-				//Sleep(delay);
+				Sleep(delay);
 				if (crossing)
 				{
 					if (frame->hits == 0)
@@ -120,14 +120,49 @@ void FastRewind()
 	mode = REWINDING;
 }
 
+int dx = 0, dy = 0;
+
+extern float angle, aspect;
+
+extern float eyeX, eyeY, eyeZ;
+extern float lookX, lookY, lookZ;
+extern float upX, upY, upZ;
+
 void UpCommand()
 {
-	delay++;
+	if (dx == 0 && dy == 0) eyeX += 0.01f;
+	if (dx == 1 && dy == 0) eyeY += 0.01f;
+	if (dx == 2 && dy == 0) eyeZ += 0.01f;
+	if (dx == 0 && dy == 1) lookX += 0.01f;
+	if (dx == 1 && dy == 1) lookY += 0.01f;
+	if (dx == 2 && dy == 1) lookZ += 0.01f;
+	if (dx == 0 && dy == 2) upX += 0.01f;
+	if (dx == 1 && dy == 2) upY += 0.01f;
+	if (dx == 2 && dy == 2) upZ += 0.01f;
+
+	if (dx == 0 && dy == 3) angle += 0.01f;
+	if (dx == 1 && dy == 3) aspect += 0.01f;
+
+	RenderFrame(latest);
 }
+
+
 
 void DownCommand()
 {
-	delay--;
+	if (dx == 0 && dy == 0) eyeX -= 0.01f;
+	if (dx == 1 && dy == 0) eyeY -= 0.01f;
+	if (dx == 2 && dy == 0) eyeZ -= 0.01f;
+	if (dx == 0 && dy == 1) lookX -= 0.01f;
+	if (dx == 1 && dy == 1) lookY -= 0.01f;
+	if (dx == 2 && dy == 1) lookZ -= 0.01f;
+	if (dx == 0 && dy == 2) upX -= 0.01f;
+	if (dx == 1 && dy == 2) upY -= 0.01f;
+	if (dx == 2 && dy == 2) upZ -= 0.01f;
+
+	if (dx == 0 && dy == 3) angle -= 0.01f;
+	if (dx == 1 && dy == 3) aspect -= 0.01f;
+	RenderFrame(latest);
 }
 
 void StepNextFrame()
@@ -182,11 +217,12 @@ void EventLoop()
 			{
 				switch (msg.message)
 				{
-					case  Messages::OPENVIDEO:
+					case  Messages::OPENVIDEOSTART:
+					case  Messages::OPENVIDEOFINISH:
 					{
 						videoBuffer = (VideoBuffer*)msg.wParam;
-						VideoSource1 *source = (VideoSource1*)msg.lParam;
-						videoBuffer->Open(source);
+						VideoSource1* source = (VideoSource1*)msg.lParam;
+						videoBuffer->Open(source, msg.message == Messages::OPENVIDEOFINISH);
 						break;
 					}
 					case  Messages::CLOSE:
@@ -277,11 +313,20 @@ void EventLoop()
 
 void StartRectangle(LPARAM lParam)
 {
+	int x = GET_X_LPARAM(lParam);
+	int y = GET_Y_LPARAM(lParam);
+
+	if (x < 300 && y < 200)
+	{
+		dx = x / 100;
+		dy = y / 50;
+	}
+
 	if (videoBuffer == NULL)
 		return;
 
-	videoBuffer->searchRect.left = videoBuffer->searchRect.right = GET_X_LPARAM(lParam);
-	videoBuffer->searchRect.top = videoBuffer->searchRect.bottom = GET_Y_LPARAM(lParam);
+	videoBuffer->searchRect.left = videoBuffer->searchRect.right = x;
+	videoBuffer->searchRect.top = videoBuffer->searchRect.bottom = y;
 
 	drawing = 1;
 	RenderFrame(latest);

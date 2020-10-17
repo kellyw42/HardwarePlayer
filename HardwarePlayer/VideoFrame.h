@@ -13,6 +13,7 @@ public:
 	//uint32_t* host;
 	CUgraphicsResource resource = 0;
 	int field;
+	//cv::Mat boundingBoxes;
 
 	VideoFrame(int width, int height)
 	{

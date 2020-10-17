@@ -198,7 +198,7 @@ namespace PhotoFinish
             if (window.ShowDialog().Value)
             {
                 // add sync ...
-                var race = new Race(this, 93600, window.start.dstFilename, window.finish.dstFilename, 
+                var race = new Race(this, NearestFrame(window.start_bang), window.start.dstFilename, window.finish.dstFilename, 
                     true, window.video_c0, window.video_c1);
                 race.PropertyChanged += Race_PropertyChanged;
                 Races.Add(race);
@@ -505,13 +505,13 @@ namespace PhotoFinish
                 //Task.Run(() =>
                 //{
                     var startSource = NativeVideo.LoadVideo(start, progress.StartProgressHandler);
-                    startPlayer = NativeVideo.OpenVideo(startSource, StartEventHandler, StartTimeHandler);
+                    startPlayer = NativeVideo.OpenVideo(startSource, StartEventHandler, StartTimeHandler, 0);
                 //});
 
                 //Task.Run(() =>
                 //{
                     var finishSource = NativeVideo.LoadVideo(finish, progress.FinishProgressHandler);
-                    finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler);
+                    finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler, 1);
                 //});
 
                 //progress.ShowDialog();

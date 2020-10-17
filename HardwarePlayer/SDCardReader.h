@@ -2,6 +2,8 @@
 
 #define BLOCK_SIZE   102400000 // 100MB
 
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+
 class SDCardReader
 {
 private:

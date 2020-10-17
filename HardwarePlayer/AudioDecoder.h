@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 class AudioDecoder
 {
 private:
@@ -13,6 +15,7 @@ public:
 		this->which = which;
 		this->parser = parser;
 		this->progress_handler = progress_handler;
+		bangs = new long[10000];
 	}
 
 private:
@@ -30,7 +33,7 @@ public:
 	}
 
 	bool end_of_file = false;
-	long bangs[10000];
+	long *bangs;
 	long bang_count = 0;
 
 private:
@@ -44,7 +47,7 @@ private:
 	const int loud_period = 200;
 
 #define ABS(a)	((a)>0?(a):-(a))
-
+/*
 	void Analyse(float* data, int length)
 	{
 		for (int j = 0; j < length; j++)
@@ -68,17 +71,115 @@ private:
 
 			if (time_since_long_silence < loud_period && volume > loud)
 			{
-				bangs[bang_count++] = start;
-				new_bangs(which, bangs, bang_count);
+				if (bang_count < 10000)
+				{
+					bangs[bang_count++] = start;
+					new_bangs(which, bangs, bang_count);
+				}
 				time_since_long_silence = 10000000;
 			}
 
 			pos++;
 		}
 	}
+*/
+
+	FILE* file;
+
+	float previousBlock[1536];
+	double previousResponse = 0;
+	long previousStart = 0;
+
+	double C, S1, S2;
+
+	void Accumulate(float* data, int start, int end)
+	{
+		for (int j = start; j < end; j++)
+		{
+			double old = S1;
+			S1 = data[j] + C * S1 - S2;
+			S2 = old;
+		}
+	}
+
+#define CalculateResponse (S1*S1 + S2*S2 - S1*S2*C)
+
+	const float sampleRate = 48000;
+	const int packetSize = 1536;
+	const int step = 8;
+	bool started = false;
+
+	const float Packet3500 = (2.0 * cos(2.0 * M_PI * round(3500 / sampleRate * packetSize) / packetSize));
+	const float Packet4000 = (2.0 * cos(2.0 * M_PI * round(4000 / sampleRate * packetSize) / packetSize));
+
+	int Threshold = 4000;
+
+	void Analyse(float* data, int length)
+	{
+		float initialC;
+
+		if (started)
+			initialC = Packet4000;
+		else
+			initialC = Packet3500;
+
+		C = initialC;  S1 = S2 = 0;
+		Accumulate(data, 0, length);
+		double response = CalculateResponse;
+
+		float bestResponse = 0;
+		long bestPos = 0;
+
+		if (previousResponse > 1000 || response > 1000)
+			for (int start = 0; start <= packetSize; start += step)
+			{
+				C = initialC;
+				S1 = S2 = 0;
+				Accumulate(previousBlock, start, packetSize);
+				Accumulate(data, 0, start);
+				double response = CalculateResponse;
+				if (response > bestResponse)
+				{
+					bestResponse = response;
+					bestPos = pos - (packetSize - start);
+				}
+			}
+		else
+			bestResponse = response;
+
+		fprintf(file, "%f: %f\n", pos / 48000.0, bestResponse);
+
+		pos += packetSize;
+
+		// peak was in previous block
+		if (previousResponse > Threshold && previousResponse > bestResponse)  // was 20000
+		{
+			fprintf(file, "!!!!!!!!!!!!!!!!!!!!!!!!\n");
+			fprintf(file, "%d %f: %f\n", started, previousStart / 48000.0, previousResponse);
+			bangs[bang_count++] = previousStart;
+			new_bangs(which, bangs, bang_count);
+
+			if (!started)
+			{
+				started = true;
+				Threshold = 1600;
+			}
+
+			previousResponse = 0; // ensure it is not reported again
+		}
+		else
+			previousResponse = bestResponse;
+
+		memcpy(previousBlock, data, sizeof(float) * length);			
+		previousStart = bestPos;
+	}
 
 	void DecodeThreadMethod()
 	{
+		char name[256];
+		sprintf(name, "bang%d.csv", which);
+		file = fopen(name, "w");
+
 		AVFrame* audioFrame = av_frame_alloc();
 		AVCodec * audioCodec = avcodec_find_decoder(AV_CODEC_ID_AC3);
 		AVCodecContext *audioCodecCtx = avcodec_alloc_context3(audioCodec);
@@ -95,6 +196,8 @@ private:
 
 			Analyse((float*)audioFrame->extended_data[0], audioFrame->nb_samples); // should do analysis on a separate thread ??? 
 		}
+
+		fclose(file);
 
 		end_of_file = true;
 		new_bangs(which, bangs, 0);

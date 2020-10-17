@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 
 
 public delegate void ReportSync(int pos, long start_time, double c0, double c1);
+public delegate void BangHandler(int which, long bang_time);
 public delegate void timehandler(long now);
 public delegate void eventhandler(long event_type, int wm_keydown);
 public delegate void progresshandler(int thread, long completed, long total, string units);
@@ -23,14 +24,14 @@ namespace PhotoFinish
         public static extern IntPtr LoadVideo(string filename, progresshandler progress_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr OpenVideo(IntPtr source, eventhandler event_handler, timehandler time_handler);
+        public static extern IntPtr OpenVideo(IntPtr source, eventhandler event_handler, timehandler time_handler, int track);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Close(IntPtr videoBuffer);
 
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void SyncAudio(ReportSync progress_handler);
+        public static extern void SyncAudio(ReportSync progress_handler, BangHandler bang_handler);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr OpenCardVideo(string destFilename, int which, string[] stringArray, int count, ulong totalSize, progresshandler progress_handler);

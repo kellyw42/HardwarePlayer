@@ -2,6 +2,8 @@
 
 #define NumFrames	10
 
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 void RenderFrame(VideoFrame *frame);
 
@@ -90,7 +92,7 @@ public:
 		fclose(file);
 	}
 
-	void Open(VideoSource1* source)
+	void Open(VideoSource1* source, int track_finish)
 	{
 		this->source = source;
 		decoder = new VideoDecoder();
@@ -109,7 +111,7 @@ public:
 			top = bottom = -10;
 
 		RECT cropRect;
-		if (top > 0)
+		if (false && top > 0)
 		{
 			cropRect.left = (long)min(top, bottom) - 10;
 			cropRect.right = (long)max(top, bottom) + 10;
@@ -133,7 +135,7 @@ public:
 
 		decoder->Start();
 
-		videoConverter = new VideoConverter();
+		videoConverter = new VideoConverter(track_finish);
 	}
 
 	~VideoBuffer()

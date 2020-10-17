@@ -58,6 +58,14 @@ void InitOpenGL()
 	wglSwapIntervalEXT(0);
 }
 
+void Line(float x0, float y0, float z0, float x1, float y1, float z1)
+{
+	glBegin(GL_LINES);
+	glVertex3f(x0, y0, z0);
+	glVertex3f(x1, y1, z1);
+	glEnd();
+}
+
 void RenderFinishLine(float top, float bottom)
 {
 	glEnable(GL_LINE_SMOOTH);
@@ -99,6 +107,27 @@ void RenderOverlay(VideoFrame *frame)
 
 	if (videoBuffer->searchRect.right != videoBuffer->searchRect.left)
 		RenderBox(videoBuffer->searchRect, 1, 0, 0);
+
+/*
+	for (int box = 0; box < frame->boundingBoxes.rows; box++)
+	{
+		int subArea = frame->boundingBoxes.at<int>(box, cv::CC_STAT_AREA);
+		if (subArea < 1000)
+			continue;
+
+		int height = frame->boundingBoxes.at<int>(box, cv::CC_STAT_HEIGHT);
+		if (height < 50)
+			continue;
+
+		RECT bounding;
+
+		bounding.left = frame->boundingBoxes.at<int>(box, cv::CC_STAT_LEFT);
+		bounding.top = 2 * frame->boundingBoxes.at<int>(box, cv::CC_STAT_TOP);
+		bounding.right = bounding.left + frame->boundingBoxes.at<int>(box, cv::CC_STAT_WIDTH);
+		bounding.bottom = bounding.top + 2 * height;
+		RenderBox(bounding, 0, 0, 0);
+	}
+*/
 }
 
 int UpdateFrameRate()
@@ -119,6 +148,60 @@ int UpdateFrameRate()
 }
 
 GLuint prev_pbo = 0;
+
+
+void LineSegment(int x0, int y0, int x1, int y1)
+{
+	Line(x0 / 1920.0, y0 / 1080.0, 0, x1 / 1920.0, y1 / 1080.0, 0);
+}
+
+float W = 20;
+
+void Draw(float x, float y, int which)
+{
+	if (which & 1) LineSegment(x, y - W, x + W, y - W);
+	if (which & 2) LineSegment(x, y - 2*W, x + W, y - 2*W);
+	if (which & 4) LineSegment(x, y, x, y - W);
+	if (which & 8) LineSegment(x, y - W, x, y - 2*W);
+	if (which & 16) LineSegment(x+W, y, x + W, y - W);
+	if (which & 32) LineSegment(x+W, y - W, x + W, y - 2*W);
+	if (which & 64) LineSegment(x, y, x + W, y);
+	if (which & 128) LineSegment(x+W/2, y, x + W/2, y-2*W);
+	if (which & 256) LineSegment(x + W/2, y-1.5*W, x + W/2, y - 2*W);
+}
+
+int bits[10] = { 126, 128, 91, 115, 53, 103, 111, 112, 127, 119 };
+
+void DrawNumber(int x, int y, float num)
+{
+	x = -1920 + x;
+	y = 1080 - y;
+
+	char buffer[10];
+	sprintf(buffer, "%+4.2f", num);
+
+	for (int i = 0; i < strlen(buffer); i++)
+	{
+		char ch = buffer[i];
+		if (ch == '-')
+			Draw(x, y, 1);
+		else if (ch == '+')
+			Draw(x, y, 129);
+		else if (ch == '.')
+			Draw(x, y, 256);
+		else
+			Draw(x, y, bits[(int)(ch - '0')]);
+
+		x += W * 1.5;
+	}
+}
+
+float angle = 34.0;
+float aspect = 1920.0 / 1080.0;
+
+float eyeX = 0, eyeY = -5.6, eyeZ = 2.7;
+float lookX = 0.2, lookY = 2.4*1.22, lookZ = 0;
+float upX = 0, upY = 0, upZ = 1;
 
 void RenderFrame(VideoFrame *frame)
 {
@@ -148,7 +231,7 @@ void RenderFrame(VideoFrame *frame)
 	glLoadIdentity();
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
+	glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 10.0);
 
 	// FixMe: only as required for small videos?
 	glColor3f(0.0f, 0.0f, 0.0f);
@@ -159,11 +242,6 @@ void RenderFrame(VideoFrame *frame)
 		glVertex2f(0, 1);
 	glEnd();
 
-	//StartTime(6);
-
-
-
-
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame->gl_pbo);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gl_texid);
 	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
@@ -173,13 +251,13 @@ void RenderFrame(VideoFrame *frame)
 	glDisable(GL_DEPTH_TEST);
 
 	glBegin(GL_QUADS);
-		glTexCoord2f(0 /* + 54*/, 0); // image top left
+		glTexCoord2f(0, 0); // image top left
 		glVertex2f(fx + 0, 1 - fy); // screen
 
 		glTexCoord2f(0, (float)height); // image left bottom
 		glVertex2f(fx + 0, 1 - fy - 2 * h); // screen
 
-		glTexCoord2f((float)width /*- 54*/, (float)height); // image bottom right
+		glTexCoord2f((float)width, (float)height); // image bottom right
 		glVertex2f(fx + w, 1 - fy - 2 * h); // screen
 
 		glTexCoord2f((float)width, 0); // image top right
@@ -188,26 +266,50 @@ void RenderFrame(VideoFrame *frame)
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
-
-	//prev_pbo = frame->gl_pbo;
-
-
-
-
-
-
-
-	//EndTime(6);
-
+	
 	RenderOverlay(frame);
+	//RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
 
-	//glFlush();
+/*
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
 
-	Trace("SwapBuffers(hdc)");
+	LineSegment(-10, 0, 10, -0);
+	LineSegment(0, -10, 0, 10);
 
-	//StartTime(7);
+	DrawNumber(0, 0, eyeX);
+	DrawNumber(200, 0, eyeY);
+	DrawNumber(400, 0, eyeZ);
+	DrawNumber(0, 100, lookX);
+	DrawNumber(200, 100, lookY);
+	DrawNumber(400, 100, lookZ);
+	DrawNumber(0, 200, upX);
+	DrawNumber(200, 200, upY);
+	DrawNumber(400, 200, upZ);
+
+	DrawNumber(0, 300, angle);
+	DrawNumber(200, 300, aspect);
+
+	gluPerspective(angle, aspect, 1.0f, 20.0f);
+	
+	gluLookAt(eyeX, eyeY, eyeZ, lookX, lookY, lookZ, upX, upY, upZ); 
+
+	glBegin(GL_LINES);
+	glVertex3d(0, 8 * 1.22, 0);
+	glVertex3d(0, 0, 0);
+	glEnd();
+
+
+	for (int lane = 0; lane <= 8; lane++)
+	{
+		glBegin(GL_LINES);
+		glVertex3d(-3000, lane * 1.22, 0);
+		glVertex3d(0, lane * 1.22, 0);
+		glEnd();
+	}
+*/
+
 	SwapBuffers(hdc);
-	//EndTime(7);
 
 	glFinish();
 

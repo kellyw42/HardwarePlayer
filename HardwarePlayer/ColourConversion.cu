@@ -167,10 +167,48 @@ extern "C" __global__ void FinishLine3(const unsigned char* srcImage, size_t nSo
 	}
 }
 
-extern "C" __global__ void FinishLine2(unsigned int* dstImage, unsigned int width, unsigned int height, float top, float bottom, int y1, int y2)
+extern "C" __global__ void FinishLine2(unsigned int* dstImage, unsigned int width, unsigned int height, float top, float bottom, int y1, int y2, unsigned char* mask, int step)
 {
 	const int x = blockIdx.x * blockDim.x + threadIdx.x;
 	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= width || y >= height)
+		return;
+
+	if (mask[y * step + x] > 0)
+		return;
+
+	double m = ((double)height) / (bottom - top);
+
+	double dist = y - (m * (x - top));
+
+	double LineWidth = 100;
+	double LineBlur = 0;
+
+	if (-LineWidth <= dist && dist <= LineWidth)
+		dstImage[y * width + x] = 0xFFFF0000;
+	else if (-LineWidth - LineBlur < dist && dist < -LineWidth)
+	{
+		double mix = (-LineWidth - dist) / LineBlur;
+		int old = dstImage[y * width + x];
+		int red = (old >> 16) & 0xFF;
+		int green = (old >> 8) & 0xFF;
+		int blue = old & 0xFF;
+		red = red * mix + 0xFF * (1 - mix);
+		dstImage[y * width + x] = (0xFF << 24) | (red << 16) | (green << 8) | blue;
+	}
+	else if (LineWidth < dist && dist < LineWidth + LineBlur)
+	{
+		double mix = (dist - LineWidth) / LineBlur;
+		int old = dstImage[y * width + x];
+		int red = (old >> 16) & 0xFF;
+		int green = (old >> 8) & 0xFF;
+		int blue = old & 0xFF;
+		red = red * mix + 0xFF * (1 - mix);
+		dstImage[y * width + x] = (0xFF << 24) | (red << 16) | (green << 8) | blue;
+	}
+
+	return;
 
 	if (x >= width || x < bottom || y < y1 || y > y2)
 		return;

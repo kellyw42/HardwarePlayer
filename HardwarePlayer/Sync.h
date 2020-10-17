@@ -1,6 +1,7 @@
 #pragma once
 
 static ReportSync report_sync;
+static BangHandler bang_handler;
 
 static long *start_bangs = NULL, *finish_bangs = NULL;
 static long start_count = 0, finish_count = 0;
@@ -17,6 +18,9 @@ static FILE *logg;
 
 extern void new_bangs(int which, long* bangs, long count)
 {
+	if (count > 0)
+		bang_handler(which, bangs[count - 1]);
+
 	if (which == 0)
 	{
 		start_bangs = bangs;
@@ -73,13 +77,11 @@ static void FindBestAlignment()
 {
 	int longest = 0;
 	int best_i = -1, best_j = -1;
-	for (int i = 0; i < 4 && i < finish_count && ToSeconds(finish_bangs[i]) < 60*15; i++)
+	for (int i = 0; i < 1 && i < finish_count; i++)
 	{
-		if (ToSeconds(finish_bangs[i]) > 3)
 		{
-			for (int j = 0; j < 4 && j < start_count && ToSeconds(start_bangs[j]) < 60*15; j++)
+			for (int j = 0; j < 1 && j < start_count; j++)
 			{
-				if (ToSeconds(start_bangs[j]) > 3)
 				{
 					int align = Align(i, j);
 					if (align > longest)
@@ -143,7 +145,9 @@ static void LinearFit()
 		LinearFit();
 	}
 	else
+	{
 		report_sync(done_count, align_start[0], c0, c1);
+	}
 }
 
 static void Analyse()
@@ -179,9 +183,10 @@ DWORD WINAPI SyncProc(LPVOID lpThreadParameter)
 	return 0;
 }
 
-extern void StartSync(ReportSync sync_handler)
+extern void StartSync(ReportSync sync_handler, BangHandler bang_handler0)
 {
 	report_sync = sync_handler;
+	bang_handler = bang_handler0;
 	new_start_bang = CreateEvent(0, FALSE, FALSE, 0);
 	new_finish_bang = CreateEvent(0, FALSE, FALSE, 0);
 

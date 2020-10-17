@@ -20,11 +20,18 @@ extern "C"
 #include <vector_types.h>
 #include "GL/glew.h"
 #include <GL/GL.h>
+#include <GL/glut.h>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include <cuda.h>
 #include <cudaGL.h>
 #include <cuda_gl_interop.h>
 #include "nvcuvid.h"
 //#include "interpolation.h"
+
+#include <opencv2/opencv.hpp>
 
 #include "Helper.h"
 #include "FrameQueue.h"
@@ -36,6 +43,7 @@ extern "C"
 #include "VideoSource1.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
+#include "AthleteDetector.h"
 #include "VideoConverter.h"
 #include "VideoBuffer.h"
 #include "VideoWindow.h"
@@ -50,9 +58,9 @@ extern "C" __declspec(dllexport) VideoSource0* OpenCardVideo(char* destFilename,
 	return new VideoSource0(destFilename, which, filenames, count, totalSize, progress_handler);
 }
 
-extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler)
+extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler, BangHandler bang_handler)
 {
-	StartSync(sync_handler);
+	StartSync(sync_handler, bang_handler);
 }
 
 extern "C" __declspec(dllexport) VideoSource1* LoadVideo(char* filename, progresshandler progress_handler)
@@ -60,10 +68,13 @@ extern "C" __declspec(dllexport) VideoSource1* LoadVideo(char* filename, progres
 	return new VideoSource1(filename, progress_handler);
 }
 
-extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(VideoSource1* source, eventhandler event_handler, timehandler time_handler)
+extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(VideoSource1* source, eventhandler event_handler, timehandler time_handler, int track)
 {
 	VideoBuffer *buffer = new VideoBuffer(event_handler, time_handler);
-	PostThreadMessage(eventLoopThread, Messages::OPENVIDEO, (WPARAM)buffer, (LPARAM)source);
+	if (track)
+		PostThreadMessage(eventLoopThread, Messages::OPENVIDEOFINISH, (WPARAM)buffer, (LPARAM)source);
+	else
+		PostThreadMessage(eventLoopThread, Messages::OPENVIDEOSTART, (WPARAM)buffer, (LPARAM)source);
 	return buffer;
 }
 

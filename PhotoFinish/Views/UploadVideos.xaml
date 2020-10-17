@@ -11,12 +11,16 @@
     <Grid x:Name="MyGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="50"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="70*"/>
+            <RowDefinition Height="5"/>
+            <RowDefinition Height="30*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Button FontSize="32" Background="LightBlue" Content="Upload" Grid.Row="0" Grid.ColumnSpan="2" Grid.Column="0" Command="{Binding Path=UploadCommand}"/>
+        <GridSplitter Background="Black" Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Stretch"/>
+        <Canvas  Name="plot" Background="Pink" Grid.Row="3" Grid.ColumnSpan="2"/>
     </Grid>
 </Window>
