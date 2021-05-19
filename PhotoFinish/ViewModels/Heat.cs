@@ -103,9 +103,47 @@ namespace PhotoFinish
             }
         }
 
+        public bool laned;
+
+        public bool Laned(String Distance)
+        {
+            switch (Distance)
+            {
+                case "70m":
+                case "100m":
+                case "200m":
+                case "400m":
+                case "60m Hurdles":
+                case "80m Hurdles":
+                case "90m Hurdles":
+                case "100m Hurdles":
+                case "110m Hurdles":
+                case "200m Hurdles":
+                case "300m Hurdles":
+                    return true;
+                case "300m":
+                case "500m":
+                case "700m":
+                case "800m":
+                case "1500m":
+                case "300m Walk":
+                case "700m Walk":
+                case "1100m Walk":
+                case "1500m Walk":
+                    return false;
+                default:
+                    throw new Exception("");
+            }
+        }
+
+
+
         public Heat(string Distance)
         {
             this.Distance = Distance;
+
+            this.laned = Laned(Distance);
+
             athletes = new ObservableCollection<Athlete>[8];
             for (int i = 0; i < 8; i++)
             {

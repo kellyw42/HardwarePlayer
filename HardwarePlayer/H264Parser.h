@@ -6,19 +6,23 @@ private:
 	uint8_t *video_buffer_start, *video_packet_start;
 	uint8_t *audio_buffer_start, *audio_packet_start;
 	long videoPacketNr = 0, audioPacketNr = 0;
-	long videoLastPacket = -1, audioLastPacket = -1;
+
 	long videoClientPos = 0, audioClientPos = 0;
-	CUVIDSOURCEDATAPACKET videoPackets[1000000];
+
 	AVPacket audioPackets[1000000];
 	bool videoWaiting = false, audioWaiting = false;
 	HANDLE more_videopackets_ready, more_audiopackets_ready;
 	char* destVideoFilename;
-	CUVIDEOFORMAT format;
+
 	SDCardReader* reader;
 	progresshandler progress_handler;
 	size_t totalSize;
 
 public:
+	CUVIDEOFORMAT format;
+	CUVIDSOURCEDATAPACKET videoPackets[1000000];
+	long videoLastPacket = -1, audioLastPacket = -1;
+
 	H264Parser(SDCardReader* reader, progresshandler progress_handler, char* destVideoFilename, CUVIDEOFORMAT format, size_t totalSize)
 	{
 		this->reader = reader;
@@ -118,12 +122,17 @@ private:
 	{
 		FILE *file;
 		fopen_s(&file, destVideoFilename, "wb");
-		if (file == NULL) MessageBoxA(NULL, destVideoFilename, "Error: cannot open file", MB_OK);
+		if (file == NULL) MessageBoxA(NULL, destVideoFilename, "Error: cannot write file", MB_OK);
 
-		fwrite(&format, sizeof(format), 1, file);
-		fwrite(&videoLastPacket, sizeof(videoLastPacket), 1, file);
-		fwrite(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
-		fwrite(video_buffer_start, 1, video_packet_start - video_buffer_start, file);
+		size_t w1 = fwrite(&format, sizeof(format), 1, file);
+		assert(w1 == 1);
+		size_t w2 = fwrite(&videoLastPacket, sizeof(videoLastPacket), 1, file);
+		assert(w2 == 1);
+		size_t w3 = fwrite(videoPackets, sizeof(CUVIDSOURCEDATAPACKET), videoLastPacket, file);
+		assert(w3 == videoLastPacket);
+		size_t bytes = video_packet_start - video_buffer_start;
+		size_t w4 = fwrite(video_buffer_start, 1, bytes, file);
+		assert(w4 == bytes);
 
 		fclose(file);
 		progress_handler(3, videoLastPacket, videoLastPacket, "video packets written");
@@ -131,24 +140,31 @@ private:
 
 	void ParseThreadMethod()
 	{
+		// wakk 5.6%
 		video_buffer_start = video_packet_start = new uint8_t[totalSize];
+		// wakk 0.15%
 		audio_buffer_start = audio_packet_start = new uint8_t[1024000000];
 
 		unsigned long video_packet_length = 0, audio_packet_length = 0;
 		CUvideotimestamp video_PTS, audio_PTS;
 
+		long long count = 0;
+
 		while (true)
 		{
+			// wakk 1.0%
 			uint8_t* buffer = reader->getNextPacket();
 			if (buffer == NULL)
 				break;
+
+			count += 192;
 
 			int pos = 0;
 
 			if (buffer[pos++] != 0x47)
 			{
 				MessageBox(NULL, L"Missing sync byte in video file", L"Error", 0);
-				return;
+				continue;
 			}
 
 			uint8_t item1 = buffer[pos++];
@@ -192,6 +208,7 @@ private:
 						//printf("video_PTS=%lld\n", video_PTS);
 					}
 
+					// wakk 1.1%
 					memcpy(this->video_packet_start + video_packet_length, buffer + pos, 188 - pos);
 					video_packet_length += 188 - pos;
 				}
@@ -231,6 +248,7 @@ private:
 		audioLastPacket = audioPacketNr;
 		SetEvent(more_audiopackets_ready);
 
+		// wakk 0.7%
 		WriteVideoFile();
 	}
 };

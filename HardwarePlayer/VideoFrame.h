@@ -3,20 +3,26 @@
 
 #include <vector>
 
+class Athlete;
+
 class VideoFrame
 {
 public:
+	int width, height;
 	CUvideotimestamp pts = 0;
 	GLuint gl_pbo;
-	long long luminance = 0;
+	long long luminance = MAXLONGLONG;
 	int hits;
 	//uint32_t* host;
 	CUgraphicsResource resource = 0;
 	int field;
+	std::vector<Athlete*> athletes;
 	//cv::Mat boundingBoxes;
 
 	VideoFrame(int width, int height)
 	{
+		this->width = width;
+		this->height = height;
 		//host = new uint32_t[height*width];
 		//printf("use OpenGL on thread %x\n", GetCurrentThreadId());
 		glGenBuffers(1, &gl_pbo);

@@ -1,11 +1,27 @@
 #pragma once
 
 #include <math.h>
+#include <vector>
+
+struct BEEP
+{
+	long pos;
+	double response;
+};
+
+struct FREQ
+{
+	bool started = false;
+	double initialC;
+	std::vector<BEEP> beeps;
+	double previousResponse = 0;
+	long previousStart = 0;
+};
 
 class AudioDecoder
 {
 private:
-	H264Parser *parser;
+	H264Parser* parser;
 	progresshandler progress_handler;
 	int which;
 
@@ -15,13 +31,12 @@ public:
 		this->which = which;
 		this->parser = parser;
 		this->progress_handler = progress_handler;
-		bangs = new long[10000];
 	}
 
 private:
 	static DWORD WINAPI DecodeThreadProc(LPVOID lpThreadParameter)
 	{
-		AudioDecoder *decoder = (AudioDecoder*)lpThreadParameter;
+		AudioDecoder* decoder = (AudioDecoder*)lpThreadParameter;
 		decoder->DecodeThreadMethod();
 		return 0;
 	}
@@ -32,65 +47,18 @@ public:
 		return CreateThread(0, 0, DecodeThreadProc, this, 0, 0);
 	}
 
-	bool end_of_file = false;
-	long *bangs;
-	long bang_count = 0;
-
 private:
-	int silent_period = 0;
-	int time_since_long_silence = 10000000;
+	const double sampleRate = 48000;
+	const int packetSize = 1536;
+	const int step = 8;
+
 	long pos = 0;
-	long start = 0;
-	const int quiet = 1100;
-	const int quiet_period = 60;
-	const int loud = 8000;
-	const int loud_period = 200;
-
-#define ABS(a)	((a)>0?(a):-(a))
-/*
-	void Analyse(float* data, int length)
-	{
-		for (int j = 0; j < length; j++)
-		{
-			float volume = ABS(data[j] * 16384);
-
-			if (volume < quiet) // 1100
-				silent_period++;
-			else
-			{
-				// is not quiet now ...
-				if (silent_period > quiet_period) // 60
-				{
-					// is was quiet until now, so look for very loud now ...
-					time_since_long_silence = 0;
-					start = pos;
-				}
-				silent_period = 0;
-			}
-			time_since_long_silence++;
-
-			if (time_since_long_silence < loud_period && volume > loud)
-			{
-				if (bang_count < 10000)
-				{
-					bangs[bang_count++] = start;
-					new_bangs(which, bangs, bang_count);
-				}
-				time_since_long_silence = 10000000;
-			}
-
-			pos++;
-		}
-	}
-*/
-
+	float previousBlock[1536];
+	double C, S1, S2;
 	FILE* file;
 
-	float previousBlock[1536];
-	double previousResponse = 0;
-	long previousStart = 0;
-
-	double C, S1, S2;
+	FREQ starts, ticks;
+	double syncC = (2.0 * cos(2.0 * M_PI * round(8000 / sampleRate * packetSize) / packetSize));
 
 	void Accumulate(float* data, int start, int end)
 	{
@@ -102,42 +70,35 @@ private:
 		}
 	}
 
-#define CalculateResponse (S1*S1 + S2*S2 - S1*S2*C)
+#define CalculateResponse (S1 * S1 + S2 * S2 - S1 * S2 * C)
 
-	const float sampleRate = 48000;
-	const int packetSize = 1536;
-	const int step = 8;
-	bool started = false;
-
-	const float Packet3500 = (2.0 * cos(2.0 * M_PI * round(3500 / sampleRate * packetSize) / packetSize));
-	const float Packet4000 = (2.0 * cos(2.0 * M_PI * round(4000 / sampleRate * packetSize) / packetSize));
-
-	int Threshold = 4000;
-
-	void Analyse(float* data, int length)
+	void Analyse2(float* data, int length, FREQ *freq)
 	{
-		float initialC;
+		int Threshold = 1000;
+		double initialC;
 
-		if (started)
-			initialC = Packet4000;
+		if (freq->started)
+			initialC = freq->initialC;
 		else
-			initialC = Packet3500;
+			initialC = syncC;
 
-		C = initialC;  S1 = S2 = 0;
+		C = initialC;
+		S1 = S2 = 0;
 		Accumulate(data, 0, length);
 		double response = CalculateResponse;
 
-		float bestResponse = 0;
+		double bestResponse = 0;
 		long bestPos = 0;
 
-		if (previousResponse > 1000 || response > 1000)
-			for (int start = 0; start <= packetSize; start += step)
+		if (freq->previousResponse > 1000 || response > 1000)
+			for (int start = 0; start < packetSize; start += step)
 			{
 				C = initialC;
 				S1 = S2 = 0;
 				Accumulate(previousBlock, start, packetSize);
 				Accumulate(data, 0, start);
 				double response = CalculateResponse;
+
 				if (response > bestResponse)
 				{
 					bestResponse = response;
@@ -147,38 +108,43 @@ private:
 		else
 			bestResponse = response;
 
-		fprintf(file, "%f: %f\n", pos / 48000.0, bestResponse);
+		// peak was in previous block
+		if (freq->previousResponse > Threshold && freq->previousResponse > bestResponse)
+		{
+			BEEP beep;
+			beep.pos = freq->previousStart;
+			beep.response = freq->previousResponse;
+			freq->beeps.push_back(beep);
+			freq->previousResponse = 0; // ensure it is not reported again
+			freq->started = true;
+		}
+		else
+			freq->previousResponse = bestResponse;
+
+		freq->previousStart = bestPos;
+	}
+
+	void Analyse(float* data, int length)
+	{
+		//for (int i = 0; i < length; i++)
+		//	Trace2("which %d, data[%d] = %20.20e\n", which, i, data[i]);
+			//assert(!isnan(data[i]));
+
+		//fwrite(data, sizeof(float), length, file);
+		//fflush(file);
+
+		Analyse2(data, length, &starts);
+		Analyse2(data, length, &ticks);
 
 		pos += packetSize;
 
-		// peak was in previous block
-		if (previousResponse > Threshold && previousResponse > bestResponse)  // was 20000
-		{
-			fprintf(file, "!!!!!!!!!!!!!!!!!!!!!!!!\n");
-			fprintf(file, "%d %f: %f\n", started, previousStart / 48000.0, previousResponse);
-			bangs[bang_count++] = previousStart;
-			new_bangs(which, bangs, bang_count);
-
-			if (!started)
-			{
-				started = true;
-				Threshold = 1600;
-			}
-
-			previousResponse = 0; // ensure it is not reported again
-		}
-		else
-			previousResponse = bestResponse;
-
-		memcpy(previousBlock, data, sizeof(float) * length);			
-		previousStart = bestPos;
+		memcpy(previousBlock, data, sizeof(float) * length);
 	}
 
 	void DecodeThreadMethod()
 	{
-		char name[256];
-		sprintf(name, "bang%d.csv", which);
-		file = fopen(name, "w");
+		starts.initialC = (2.0 * cos(2.0 * M_PI * round(3000 / sampleRate * packetSize) / packetSize));
+		ticks.initialC = (2.0 * cos(2.0 * M_PI * round(4000 / sampleRate * packetSize) / packetSize));
 
 		AVFrame* audioFrame = av_frame_alloc();
 		AVCodec * audioCodec = avcodec_find_decoder(AV_CODEC_ID_AC3);
@@ -191,16 +157,34 @@ private:
 			if (packet == NULL)
 				break;
 
+			// wakk 2.31%
 			avcodec_send_packet(audioCodecCtx, packet);
 			avcodec_receive_frame(audioCodecCtx, audioFrame);
 
 			Analyse((float*)audioFrame->extended_data[0], audioFrame->nb_samples); // should do analysis on a separate thread ??? 
 		}
 
+		char filename[128];
+		sprintf(filename, "Audio%d.txt", which);
+		file = fopen(filename, "w");
+
+		fprintf(file, "starts:\n");
+		for (BEEP beep : starts.beeps)
+			fprintf(file, "%f,%f\n", beep.pos/48000.0, beep.response);
+
+		fprintf(file, "ticks:\n");
+			for (BEEP beep : ticks.beeps)
+				fprintf(file, "%f,%f\n", beep.pos/48000.0, beep.response);
 		fclose(file);
 
-		end_of_file = true;
-		new_bangs(which, bangs, 0);
+		int bang_count = ticks.beeps.size();
+		long *bangs = new long[bang_count];
+
+		for (int i = 0; i < bang_count; i++)
+			//if (ticks.beeps[i].response > 10000)
+				bangs[i] = ticks.beeps[i].pos;
+
+		new_bangs(which, bangs, bang_count);
 
 		avcodec_close(audioCodecCtx);
 		avcodec_free_context(&audioCodecCtx);

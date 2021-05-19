@@ -9,10 +9,11 @@ void RenderFrame(VideoFrame *frame);
 
 class VideoBuffer
 {
-private:
+public:
 	VideoConverter * videoConverter;
 
 	VideoFrame* frames[NumFrames];
+	VideoFrame* summary;
 	timehandler time_handler;
 	eventhandler event_handler;
 	char finish_filename[256];
@@ -41,6 +42,13 @@ private:
 			return NULL;
 	}
 
+	void TrackAthletes(std::vector<Athlete*> athletes, VideoFrame* previous)
+	{
+		if (previous != NULL)
+			for (Athlete* athlete : athletes)
+				athlete->FindPrevious(previous->athletes);
+	}
+
 	VideoFrame* ConvertNextFrame(bool search)
 	{
 		CUVIDPARSERDISPINFO frameInfo = decoder->FetchFrame();
@@ -49,10 +57,34 @@ private:
 		VideoFrame *bottomField = CreateFrameFor(frameInfo.timestamp + TIME_PER_FIELD);
 
 		videoConverter->ConvertFields(decoder->decoder, width, height, frameInfo, 
-			topField, bottomField, search ? &searchRect : NULL, top, bottom, searchRect);
+			topField, bottomField, search ? &searchRect : NULL, top, bottom, searchRect, summary);
+
+		TrackAthletes(topField->athletes, GetFrame(frameInfo.timestamp - TIME_PER_FIELD));
+		TrackAthletes(bottomField->athletes, topField);
 
 		decoder->releaseFrame(&frameInfo);
 		return topField;
+	}
+
+	int xxx = 0;
+	int yyy = 0;
+
+	VideoFrame* ShowSummary(VideoFrame* previouslySearched, VideoFrame* nextFrame)
+	{
+		videoConverter->CopyFlash(previouslySearched, summary, xxx, yyy, searchRect);
+		videoConverter->CopyFlash(nextFrame, summary, xxx+1, yyy, searchRect);
+
+		if (yyy < 7)
+			yyy++;
+		else if (xxx < 14)
+		{
+			yyy = 0;
+			xxx += 2;
+		}
+		else
+			return NULL;
+
+		return summary;
 	}
 
 	VideoFrame* NextUntil(CUvideotimestamp targetPts, bool search)
@@ -66,7 +98,8 @@ private:
 			if (cached != NULL)
 				return cached;
 			CUvideotimestamp latestPts = ConvertNextFrame(search)->pts;
-			assert(latestPts <= targetPts);
+			if (latestPts > targetPts)
+				return GetFrame(latestPts);
 		}
 	}
 
@@ -77,6 +110,8 @@ public:
 	VideoDecoder* decoder;
 	RECT searchRect, cropRect;
 	int width, height;
+	bool isFinishCamera;
+	Lanes* lanes;
 
 	VideoBuffer(eventhandler event_handler, timehandler time_handler)
 	{
@@ -92,9 +127,10 @@ public:
 		fclose(file);
 	}
 
-	void Open(VideoSource1* source, int track_finish)
+	void Open(VideoSource1* source, bool isFinishCamera)
 	{
 		this->source = source;
+		this->isFinishCamera = isFinishCamera;
 		decoder = new VideoDecoder();
 
 		decoder->OpenVideo(source);
@@ -110,20 +146,19 @@ public:
 		else
 			top = bottom = -10;
 
-		RECT cropRect;
-		if (false && top > 0)
-		{
-			cropRect.left = (long)min(top, bottom) - 10;
-			cropRect.right = (long)max(top, bottom) + 10;
-		}
-		else
-		{
-			cropRect.left = source->format.display_area.left;
-			cropRect.right = source->format.display_area.right;
-		}
-
+		cropRect.left = source->format.display_area.left;
+		cropRect.right = source->format.display_area.right;
 		cropRect.top = source->format.display_area.top;
 		cropRect.bottom = source->format.display_area.bottom;
+
+		if (isFinishCamera)
+		{
+			lanes = new Lanes(cropRect);
+			lanes->loadLaneMarkings(source->videoFilename);
+			videoConverter = new VideoConverter(isFinishCamera, lanes);
+		}
+		else
+			videoConverter = new VideoConverter(isFinishCamera, NULL);
 
 		decoder->Init(cropRect);
 
@@ -133,9 +168,9 @@ public:
 		for (int i = 0; i < NumFrames; i++)
 			frames[i] = new VideoFrame(width, height/2);
 
-		decoder->Start();
+		summary = new VideoFrame(1920, 1080 / 2);
 
-		videoConverter = new VideoConverter(track_finish);
+		decoder->Start();
 	}
 
 	~VideoBuffer()
@@ -144,6 +179,12 @@ public:
 		delete videoConverter;
 		for (int i = 0; i < NumFrames; i++)
 			delete frames[i];
+	}
+
+	void UpdateLanes()
+	{
+		lanes->saveLanes();
+		videoConverter->UpdateLanes();
 	}
 
 	VideoFrame * Crop(CUvideotimestamp currentPts)
@@ -177,6 +218,13 @@ public:
 			return cached;
 
 		CUvideotimestamp fetchedPts = decoder->Goto(targetPts);
+
+		CUvideotimestamp go = targetPts;
+		while (fetchedPts > targetPts)
+		{
+			go -= 1800;
+			fetchedPts = decoder->Goto(go);
+		}
 		assert(fetchedPts <= targetPts);
 		return NextUntil(targetPts, false);
 	}
@@ -211,9 +259,12 @@ public:
 
 	void TimeEvent(CUvideotimestamp pts)
 	{
-		displayed = pts;
-		if (time_handler)
-			time_handler(pts);
+		if (pts > 0)
+		{
+			displayed = pts;
+			if (time_handler)
+				time_handler(pts);
+		}
 	}
 
 	void InputEvent(int keyDown, int wm_keydown)

@@ -12,31 +12,21 @@ static int align_length;
 static int exclude[10000];
 static long align_start[10000];
 static long align_finish[10000];
-static int done_count = 0;
 
 static FILE *logg;
 
 extern void new_bangs(int which, long* bangs, long count)
 {
-	if (count > 0)
-		bang_handler(which, bangs[count - 1]);
-
 	if (which == 0)
 	{
 		start_bangs = bangs;
-		if (count == 0)
-			done_count++;
-		else
-			start_count = count;
+		start_count = count;
 		SetEvent(new_start_bang);
 	}
 	else
 	{
 		finish_bangs = bangs;
-		if (count == 0)
-			done_count++;
-		else
-			finish_count = count;
+		finish_count = count;
 		SetEvent(new_finish_bang);
 	}
 }
@@ -58,7 +48,7 @@ static int Align(int i, int j)
 
 	while (i < finish_count && j < start_count)
 	{
-		if (0 <= finish_bangs[i] - start_bangs[j] - diff && ToSeconds(finish_bangs[i] - start_bangs[j] - diff) <= 0.2)
+		if (ToSeconds(abs(finish_bangs[i] - start_bangs[j] - diff)) <= 0.2)
 		{
 			align_finish[length] = finish_bangs[i++];
 			align_start[length] = start_bangs[j++];
@@ -97,6 +87,33 @@ static void FindBestAlignment()
 
 	if (best_i >= 0 && best_j >= 0)
 		align_length = Align(best_i, best_j);
+}
+
+static void LinearFit2()
+{
+	double cx = align_start[0];
+	double cy = align_finish[0] - align_start[0];
+
+	double total = 0;
+	for (int i = 1; i < align_length; i++)
+	{
+		double m = ((double)(align_finish[i] - align_start[i] - cy)) / (align_start[i] - cx);
+		total += m;
+	}
+
+	double m = total / align_length;
+
+	m += 1.0;
+
+	double maxError = 0;
+	for (int i = 1; i < align_length; i++)
+	{
+		double error = (align_finish[i] - align_start[i] - cy) - (align_start[i] - cx) * m;
+		if (abs(error) > maxError)
+			maxError = abs(error);
+	}
+
+	report_sync(2, cx, cy, m);
 }
 
 static void LinearFit()
@@ -146,12 +163,14 @@ static void LinearFit()
 	}
 	else
 	{
-		report_sync(done_count, align_start[0], c0, c1);
+		report_sync(2, align_start[0], c0, c1);
 	}
 }
 
+
 static void Analyse()
 {
+	align_length = 0;
 	FindBestAlignment();
 
 	if (align_length > 1)
@@ -163,23 +182,9 @@ static void Analyse()
 
 DWORD WINAPI SyncProc(LPVOID lpThreadParameter)
 {
-	align_length = 0;
 	HANDLE more_bangs[2] = { new_start_bang, new_finish_bang };
-
-	//while (start_count < 10 || finish_count < 10);
-	//	WaitForMultipleObjects(2, more_bangs, false, INFINITE);
-
-	while (true)
-	{ 
-		bool last_analysed = (done_count == 2);
-		Analyse();
-		if (last_analysed)
-			break;
-
-		if (done_count < 2)
-			WaitForMultipleObjects(2, more_bangs, false, INFINITE);
-	}
-
+	WaitForMultipleObjects(2, more_bangs, true, INFINITE);
+	Analyse();
 	return 0;
 }
 

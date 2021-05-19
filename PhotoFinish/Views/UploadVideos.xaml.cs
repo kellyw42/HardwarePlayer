@@ -80,19 +80,22 @@ namespace PhotoFinish.Views
 
         void UploadFilesNow()
         {
+            this.Title = "Uploading ...";
             start.UploadCommand.Execute(null);
             finish.UploadCommand.Execute(null);
         }
 
-        public UploadVideos(DateTime date)
+        bool autoStart = false;
+
+        public UploadVideos(DateTime date, bool autoStart)
         {
+            this.autoStart = autoStart;
+
             this.UploadCommand = new DelegateCommand(UploadFilesNow);
             this.handler = new ReportSync(DrawSync);
             this.bang_handler = new BangHandler(BangHandler);
 
             InitializeComponent();
-
-            plot.MouseDown += Plot_MouseDown;
 
             NativeVideo.SyncAudio(handler, bang_handler);
 
@@ -106,10 +109,14 @@ namespace PhotoFinish.Views
             Grid.SetColumn(start, 0);
             Grid.SetRow(finish, 1);
             Grid.SetColumn(finish, 1);
+
+            if (autoStart)
+                this.Loaded += UploadVideos_Loaded;
         }
 
-        private void Plot_MouseDown(object sender, MouseButtonEventArgs e)
+        private void UploadVideos_Loaded(object sender, RoutedEventArgs e)
         {
+            UploadFilesNow();
         }
     }
 }

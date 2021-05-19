@@ -61,6 +61,13 @@ public:
 	uint8_t* bufferStart;
 	CUvideotimestamp firstPts, lastPts;
 
+	VideoSource1(VideoSource0 *source, progresshandler progress_handler)
+	{
+		format = source->parser->format;
+		videoLastPacket = source->parser->videoLastPacket; // fixme
+		videoPackets = source->parser->videoPackets;
+	}
+
 	VideoSource1(char* videoFilename, progresshandler progress_handler)
 	{
 		this->videoFilename = _strdup(videoFilename);
@@ -79,11 +86,13 @@ public:
 		offsets = new long long[videoLastPacket+1];
 		offsets[0] = _ftelli64(file);
 		for (long i = 1; i <= videoLastPacket; i++)
+		{
 			offsets[i] = offsets[i - 1] + videoPackets[i - 1].payload_size;
-
+			//Trace2("offsets[%ld] = %lld\n", i, offsets[i]);
+		}
 		firstPts = LLONG_MAX;
 		for (int i = 0; i < 5; i++)
-			if (videoPackets[i].timestamp < firstPts)
+	 	    if (videoPackets[i].timestamp < firstPts)
 				firstPts = videoPackets[i].timestamp;
 
 		lastPts = LLONG_MIN;
@@ -103,6 +112,8 @@ public:
 		_fseeki64(file, offsets[start], SEEK_SET);
 		size_t bytesRead = fread(bufferStart, 1, FrameBufferSize, file);
 
+		Trace2("%s LoadMoreFrames start = %ld, offset = %lld, bytesRead = %lld\n", videoFilename, start, offsets[start], bytesRead);
+
 		uint8_t* buffer = bufferStart;
 		uint8_t* bufferEnd = buffer + bytesRead;
 		endFrame = startFrame;
@@ -115,7 +126,8 @@ public:
 		if (buffer > bufferEnd)
 		    endFrame--;
 
-		assert(startFrame <= start && start < endFrame);
+		//if (startFrame > start || start >= endFrame)
+		//	assert(startFrame <= start && start < endFrame);
 	}
 
 	~VideoSource1()

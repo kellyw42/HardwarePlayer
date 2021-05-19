@@ -153,7 +153,7 @@ public:
 			if (firstPts > 0)
 			{
 				Trace("first decoded = %lld\n", firstPts);
-				assert(firstPts <= targetPts);
+				//assert(firstPts <= targetPts);
 				return firstPts;
 			}
 		}

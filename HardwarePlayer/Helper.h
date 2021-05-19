@@ -16,7 +16,8 @@ extern "C"
 	typedef void(__stdcall *timehandler)(CUvideotimestamp);
 }
 
-enum Messages { OPENVIDEOSTART = WM_USER + 1, OPENVIDEOFINISH, GOTO, PLAYPAUSE, PAUSE, PLAY, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, CLOSE, UP, DOWN };
+enum Messages { OPENVIDEOSTART = WM_USER + 1, OPENVIDEOFINISH, GOTO, PLAYPAUSE, PAUSE, PLAY, STEPNEXTFRAME, STEPPREVFRAME, VISUALSEARCH, REWIND, FASTFORWARD, CLOSE, UP, DOWN, CONFIRM, TEST, FINDSTARTS, SETUPLANES
+};
 
 void inline Trace(const char* format, ...)
 {
@@ -39,7 +40,7 @@ void Trace2(const char* format, ...)
 	vsprintf(msg, format, argptr);
 	va_end(argptr);
 	OutputDebugStringA(msg);
-	OutputDebugStringA("\n");
+	//OutputDebugStringA("\n");
 }
 
 void CHECK(CUresult result)

@@ -13,12 +13,6 @@
         Height="1080"
         FontSize="18"
         FontFamily="Microsoft Sans Serif">
-    
-    <ie:Interaction.Triggers>
-        <ie:EventTrigger EventName="PreviewKeyDown">
-            <ie:InvokeCommandAction Command="{Binding Path=KeyDownCommand}" />
-        </ie:EventTrigger>
-    </ie:Interaction.Triggers>
 
     <Window.DataContext>
         <local:Meet/>
@@ -36,7 +30,7 @@
         
         <!-- Menu -->
         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
-            <Menu FontSize="21" FontFamily="Microsoft Sans Serif" Padding="5,0,50,0">
+            <Menu FontSize="21" FontFamily="Microsoft Sans Serif" Padding="5,0,5,0">
                 <MenuItem Header="_File"  Padding="12,2,12,2">
                     <MenuItem Header="_Save Results" Command="{Binding SaveCommand}"/>
                     <MenuItem Header="_Exit" Command="{Binding ExitCommand}"/>
@@ -49,9 +43,11 @@
                 <MenuItem Header="View _Start" Padding="12,2,12,2" Command="{Binding ViewStartCommand}">
                 </MenuItem>
                 <MenuItem Header="View _Finish" Padding="12,2,12,2" Command="{Binding ViewFinishCommand}">
-                </MenuItem>                
+                </MenuItem>
+                <MenuItem Header="Initiate" Padding="12,2,12,2" Command="{Binding InitiateCommand}">
+                </MenuItem>
             </Menu>
-            <Label FontSize="21" FontFamily="Microsoft Sans Serif" Margin="80,0,10,0" Content="Meet Date:"/>
+            <Label FontSize="21" FontFamily="Microsoft Sans Serif" Margin="0,0,10,0" Content="Meet Date:"/>
             <ComboBox FontSize="21" FontFamily="Microsoft Sans Serif" Name="meetDates" ItemsSource="{Binding Dates}" SelectedItem="{Binding Path=CurrentMeet, Mode=TwoWay}">
                 <ie:Interaction.Triggers>
                     <ie:EventTrigger EventName="SelectionChanged">
@@ -131,61 +127,65 @@
                     <DockPanel LastChildFill="True" VerticalAlignment="Stretch">
                         <Label Width="40" Background="LightGray" DockPanel.Dock="Left" FontSize="21" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalAlignment="Stretch"  VerticalContentAlignment="Center"  Content="{Binding LaneNumber}"/>
 
-                        <!-- List of Finish Times in that Lane -->                        
-                        <ListView Width="90" BorderThickness="0" DockPanel.Dock="Left" IsSynchronizedWithCurrentItem="True" ItemsSource="{Binding finishTimes}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListView.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Remove" Command="{Binding RemoveFinishTimeCommand}" CommandParameter="{Binding finishTimes.CurrentItem}"/>
-                                </ContextMenu>
-                            </ListView.ContextMenu>
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="0"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                </Style>
-                            </ListView.ItemContainerStyle>                            
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="2,2,0,0">
-                                        <Border BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,0,2,2">
-                                            <Label MouseDown="TimeSelected" HorizontalContentAlignment="Right" Width="80" Background="{Binding Record}" Tag="{Binding}" Content="{Binding Elapsed}"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Auto">
+                            <DockPanel>
+                                <!-- List of Finish Times in that Lane -->                        
+                            <ListView Width="90" BorderThickness="0" DockPanel.Dock="Left" IsSynchronizedWithCurrentItem="True" ItemsSource="{Binding finishTimes}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListView.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Remove" Command="{Binding RemoveFinishTimeCommand}" CommandParameter="{Binding finishTimes.CurrentItem}"/>
+                                    </ContextMenu>
+                                </ListView.ContextMenu>
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>                            
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="2,2,0,0">
+                                            <Border BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,0,2,2">
+                                                <Label MouseDown="TimeSelected" HorizontalContentAlignment="Right" Width="80" Background="{Binding Record}" Tag="{Binding}" Content="{Binding Elapsed}"/>
+                                            </Border>
                                         </Border>
-                                    </Border>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
 
-                        <!-- List of Athletes in that Lane -->
-                        <ListView BorderThickness="0" DockPanel.Dock="Right" ItemsSource="{Binding athletes}" dd:DragDrop.IsDropTarget="True"   dd:DragDrop.IsDragSource="True" dd:DragDrop.UseDefaultDragAdorner="True" IsSynchronizedWithCurrentItem="True">
-                            <ListView.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Remove" Command="{Binding RemoveAthleteCommand}" CommandParameter="{Binding athletes.CurrentItem}"/>
-                                </ContextMenu>
-                            </ListView.ContextMenu>
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="0"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="2,2,0,0">
-                                        <Border BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,0,2,2">
-                                            <StackPanel Orientation="Horizontal" Background="{Binding Matched}">
-                                                <Label Content="{Binding Number}" Width="60" />
-                                                <Label Content="{Binding Name}"  Width ="350" />
-                                                <Label Content="{Binding FinishTime}" Foreground="{Binding Improvement}" Width ="200" HorizontalContentAlignment="Right"/>
-                                                <Label Content="{Binding AgeGroup}" />
-                                            </StackPanel>
+                            <!-- List of Athletes in that Lane -->
+                            <ListView BorderThickness="0" DockPanel.Dock="Right" ItemsSource="{Binding athletes}" dd:DragDrop.IsDropTarget="True"   dd:DragDrop.IsDragSource="True" dd:DragDrop.UseDefaultDragAdorner="True" IsSynchronizedWithCurrentItem="True">
+                                <ListView.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Remove" Command="{Binding RemoveAthleteCommand}" CommandParameter="{Binding athletes.CurrentItem}"/>
+                                    </ContextMenu>
+                                </ListView.ContextMenu>
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="0"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{x:Static SystemColors.ControlLightBrush}" BorderThickness="2,2,0,0">
+                                            <Border BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,0,2,2">
+                                                <StackPanel Orientation="Horizontal" Background="{Binding Matched}">
+                                                    <Label Content="{Binding Number}" Width="60" />
+                                                    <Label Content="{Binding Name}"  Width ="350" />
+                                                    <Label Content="{Binding FinishTime}" Foreground="{Binding Improvement}" Width ="200" HorizontalContentAlignment="Right"/>
+                                                    <Label Content="{Binding AgeGroup}" />
+                                                </StackPanel>
+                                            </Border>
                                         </Border>
-                                    </Border>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            </DockPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

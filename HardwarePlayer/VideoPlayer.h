@@ -1,4 +1,4 @@
-enum Mode { PLAYING, PAUSED, REWINDING, SEARCHING };
+enum Mode { PLAYING, PAUSED, REWINDING, SEARCHING, TESTING };
 
 using namespace std::chrono;
 
@@ -7,46 +7,71 @@ int drawing = 0;
 int speed;
 Mode mode = PAUSED;
 
-void busyWait(int milliseconds)
-{
-	auto start = high_resolution_clock::now();
-	while (true)
-	{
-		auto now = high_resolution_clock::now();
-		duration<double> seconds = now - start;
-		if (seconds.count()*1000 >= milliseconds)
-			return;
-	}
-}
+
 
 int delay = 10;
 
 bool crossing = false;
 
+CUvideotimestamp lastRunner;
+
+bool athleteCrossing(VideoFrame *frame)
+{
+	for (Athlete* athlete : frame->athletes)
+		if (athlete->firstCrossing())
+			return true;
+
+	return false;
+}
+
+FILE* dumpFile;
+
+VideoFrame* previouslySearched;
+
 void Render()
 {
 	switch (mode)
 	{
+		case Mode::TESTING:
+		{
+			//while (true)
+			{
+				VideoFrame* frame = videoBuffer->NextFrame(0);
+				RenderFrame(frame);
+				//videoBuffer->displayed = frame->pts;
+
+				for (Athlete* athlete : frame->athletes)
+					if (athlete->firstCrossing())
+					{
+						if (athlete->getLaneNumber(NULL) != (int)videoBuffer->lanes->getLane(athlete->feetX, athlete->feetY))
+							mode = Mode::PAUSED;
+						//fprintf(dumpFile, "%lld", frame->pts);
+						//fprintf(dumpFile, ",%d\n", athlete->getLaneNumber(dumpFile));
+					}
+
+				if (frame->pts > lastRunner)
+				{
+					fflush(dumpFile);
+					mode = Mode::PAUSED;
+					videoBuffer->InputEvent('T', 1);
+					break;
+				}
+			}
+
+			break;
+		}
+
 		case Mode::PLAYING:
 		{
 			VideoFrame *frame;
 			if (speed == 1)
 			{
 				frame = videoBuffer->NextFrame(0);
-				Sleep(delay);
-				if (crossing)
-				{
-					if (frame->hits == 0)
-						crossing = false;
-				}
-				else
-				{
-					if (frame->hits > 0)
-					{
-						mode = Mode::PAUSED;
-						crossing = true;
-					}
-				}
+				//Sleep(delay);
+
+				bool cross = athleteCrossing(frame);
+				if (cross)
+					mode = Mode::PAUSED;
 			}
 			else
 				frame = videoBuffer->FastForwardImage(speed);
@@ -59,9 +84,19 @@ void Render()
 		{
 			VideoFrame * frame = videoBuffer->NextFrame(true);
 			RenderFrame(frame);
+			videoBuffer->TimeEvent(frame->pts);
+
 			if (frame->luminance * 1.0 / prevLuminance > 1.10)
-				mode = PAUSED;
-			prevLuminance = frame->luminance;
+			{
+				//VideoFrame* summary = videoBuffer->ShowSummary(previouslySearched, frame);
+				//if (summary != NULL)
+				//	RenderFrame(summary);
+				//else
+					mode = PAUSED;
+			}
+
+			previouslySearched = frame;
+			prevLuminance = previouslySearched->luminance;
 			break;
 		}
 		case Mode::REWINDING:
@@ -82,6 +117,15 @@ void Render()
 			break;
 		}
 	}
+}
+
+int raceNr = 1;
+
+void DoTest(CUvideotimestamp pts)
+{
+	fprintf(dumpFile, "race %d\n", raceNr++);
+	mode = Mode::TESTING;
+	lastRunner = pts;
 }
 
 void DoPlay()
@@ -122,47 +166,18 @@ void FastRewind()
 
 int dx = 0, dy = 0;
 
-extern float angle, aspect;
+//extern float angle, aspect, theta, skew;
 
-extern float eyeX, eyeY, eyeZ;
-extern float lookX, lookY, lookZ;
-extern float upX, upY, upZ;
+//extern float eyeX, eyeY, eyeZ;
+//extern float lookX, lookY, lookZ;
+//extern float upX, upY, upZ;
 
 void UpCommand()
 {
-	if (dx == 0 && dy == 0) eyeX += 0.01f;
-	if (dx == 1 && dy == 0) eyeY += 0.01f;
-	if (dx == 2 && dy == 0) eyeZ += 0.01f;
-	if (dx == 0 && dy == 1) lookX += 0.01f;
-	if (dx == 1 && dy == 1) lookY += 0.01f;
-	if (dx == 2 && dy == 1) lookZ += 0.01f;
-	if (dx == 0 && dy == 2) upX += 0.01f;
-	if (dx == 1 && dy == 2) upY += 0.01f;
-	if (dx == 2 && dy == 2) upZ += 0.01f;
-
-	if (dx == 0 && dy == 3) angle += 0.01f;
-	if (dx == 1 && dy == 3) aspect += 0.01f;
-
-	RenderFrame(latest);
 }
-
-
 
 void DownCommand()
 {
-	if (dx == 0 && dy == 0) eyeX -= 0.01f;
-	if (dx == 1 && dy == 0) eyeY -= 0.01f;
-	if (dx == 2 && dy == 0) eyeZ -= 0.01f;
-	if (dx == 0 && dy == 1) lookX -= 0.01f;
-	if (dx == 1 && dy == 1) lookY -= 0.01f;
-	if (dx == 2 && dy == 1) lookZ -= 0.01f;
-	if (dx == 0 && dy == 2) upX -= 0.01f;
-	if (dx == 1 && dy == 2) upY -= 0.01f;
-	if (dx == 2 && dy == 2) upZ -= 0.01f;
-
-	if (dx == 0 && dy == 3) angle -= 0.01f;
-	if (dx == 1 && dy == 3) aspect -= 0.01f;
-	RenderFrame(latest);
 }
 
 void StepNextFrame()
@@ -181,6 +196,17 @@ void StepPrevFrame()
 		mode = PAUSED;
 }
 
+void ConfirmLane()
+{
+	for (Athlete* athlete : latest->athletes)
+		if (athlete->firstCrossing())
+		{
+			int lane = athlete->getLaneNumber(NULL);
+			videoBuffer->InputEvent('0' + lane, 1);
+		}
+	mode = PLAYING;
+}
+
 void Search(VideoBuffer *startBuffer, CUvideotimestamp pts)
 {
 	mode = Mode::SEARCHING;
@@ -189,6 +215,18 @@ void Search(VideoBuffer *startBuffer, CUvideotimestamp pts)
 		prevLuminance = MAXLONGLONG;
 		videoBuffer = startBuffer;
 		RenderFrame(startBuffer->GotoTime(pts));
+	}
+}
+
+void DoFindStarts(CUvideotimestamp* times)
+{
+	for (int i = 0; times[i] != 0; i++)
+	{
+		CUvideotimestamp pts = times[i];
+		RenderFrame(videoBuffer->GotoTime(pts - TIME_PER_FIELD));
+		Sleep(500);
+		RenderFrame(videoBuffer->NextUntil(pts, false));
+		Sleep(500);
 	}
 }
 
@@ -246,6 +284,25 @@ void EventLoop()
 						DoPause();
 						break;
 					}
+					case Messages::FINDSTARTS:
+					{
+						videoBuffer = (VideoBuffer*)msg.wParam;
+						CUvideotimestamp* times = (CUvideotimestamp*)msg.lParam;
+						DoFindStarts(times);
+						break;
+					}
+					case Messages::SETUPLANES:
+					{
+						setup_lanes = true;
+					    RenderFrame(latest);		
+						break;
+					}
+					case Messages::TEST:
+					{
+						CUvideotimestamp pts = (CUvideotimestamp)msg.wParam;
+						DoTest(pts);
+						break;
+					}
 					case  Messages::PLAY:
 					{
 						DoPlay();
@@ -284,6 +341,11 @@ void EventLoop()
 						VideoBuffer* start = (VideoBuffer*)msg.wParam;
 						CUvideotimestamp pts = (CUvideotimestamp)msg.lParam;
 						Search(start, pts);
+						break;
+					}
+					case Messages::CONFIRM:
+					{
+						ConfirmLane();
 						break;
 					}
 					case Messages::FASTFORWARD:
@@ -344,6 +406,8 @@ void StartCrop(LPARAM lParam)
 	RenderFrame(latest);
 }
 
+extern HWND hwnd;
+
 void StretchRectangle(LPARAM lParam)
 {
 	if (drawing == 1)
@@ -360,6 +424,24 @@ void StretchRectangle(LPARAM lParam)
 		int y = HIWORD(lParam);
 
 		RenderFrame(latest);
+	}
+	else
+	{
+		if (videoBuffer == NULL || videoBuffer->lanes == NULL)
+			return;
+
+		HCURSOR crosshair = LoadCursor(NULL, IDC_CROSS);
+		SetCursor(crosshair);
+
+		POINT mouse;
+		GetCursorPos(&mouse);
+		ScreenToClient(hwnd, &mouse);
+
+		double lane = videoBuffer->lanes->getLane(mouse.x, mouse.y);
+
+		char str[256];
+		sprintf(str, "%d,%d -> (%f,%f) = lane %d", mouse.x , mouse.y, x, y, (int)lane);
+		SetWindowTextA(hwnd, str);
 	}
 }
 
@@ -392,6 +474,11 @@ void MoveLine(char direction)
 
 int MouseEvent(UINT Msg, LPARAM lParam)
 {
+	//char msg[128];
+	//sprintf(msg, "%d, %d", GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+	//SetWindowTextA(hwnd, msg);
+
+
 	switch (Msg)
 	{
 	case WM_LBUTTONDOWN:
@@ -421,10 +508,47 @@ int Keyup(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+bool setup_lanes = false;
+//extern float lane_width;
+
 int Keydown(WPARAM wParam, LPARAM lParam)
 {
+	if (setup_lanes)
+	{
+		char ch = (char)wParam;
+		if (ch == 109) // numpad '-'
+		{
+			setup_lanes = false;
+			videoBuffer->UpdateLanes();
+		}
+		else if (ch == 100) // numeric left
+			videoBuffer->lanes->theta += 0.01f;
+		else if (ch == 102) // numeric right
+			videoBuffer->lanes->theta -= 0.01f;
+		else if (ch == 37) // left arrow
+			videoBuffer->lanes->lookX += 0.01f;
+		else if (ch == 39)// right arrow
+			videoBuffer->lanes->lookX -= 0.01f;
+		else if (ch == 40) // down arror
+			videoBuffer->lanes->lookY += 0.01f;
+		else if (ch == 38) // up arrow
+			videoBuffer->lanes->lookY -= 0.01f;
+		else if (ch == 104) // numeric up
+			videoBuffer->lanes->skew += 0.01f;
+		else if (ch == 98) // numeric down
+			videoBuffer->lanes->skew -= 0.01f;
+
+		RenderFrame(latest);
+
+		return 0;
+	}
+
 	switch (wParam)
 	{
+	case 109:
+		setup_lanes = true; // numpad '-'
+		RenderFrame(latest);
+		return 0;
 	case 'A':
 	case 'D':
 	case 'Q':
@@ -460,6 +584,8 @@ LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
 
 DWORD WINAPI CreateVideoPlayer(LPVOID lpThreadParameter)
 {
+	fopen_s(&dumpFile, "dump.csv", "w");
+
 	CreateSingleWindow();
 
 	EventLoop();

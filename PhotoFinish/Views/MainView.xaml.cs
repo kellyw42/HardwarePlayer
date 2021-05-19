@@ -64,12 +64,24 @@ namespace PhotoFinish.Views
                     meet.RewindCommand.Execute(null);
                     e.Handled = true;
                     return;
+                case Key.T:
+                    meet.TestCommand.Execute(null);
+                    e.Handled = true;
+                    return;
                 case Key.F:
                     meet.FastForwardCommand.Execute(null);
                     e.Handled = true;
                     return;
+                case Key.B:
+                    e.Handled = true;
+                    meet.FindStartsCommand.Execute(null);
+                    return;
                 case Key.P:
                     meet.PlayPauseCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                case Key.C:
+                    meet.ConfirmCommand.Execute(null);
                     e.Handled = true;
                     return;
                 case Key.S:

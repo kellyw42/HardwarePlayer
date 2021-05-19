@@ -36,13 +36,7 @@ namespace PhotoFinish.Views
                 string StreamFolder = drive.RootDirectory + @"PRIVATE\AVCHD\BDMV\STREAM\";
                 if (drive.IsReady && drive.DriveType == DriveType.Removable && System.IO.Directory.Exists(StreamFolder))
                 {
-                    if (this.name == "Start" && drive.VolumeLabel == "Start")
-
-                    {
-                        this.driveInfo = drive;
-                        this.streamFolder = StreamFolder;
-                    }
-                    if (this.name == "Finish" && drive.VolumeLabel == "Finish")
+                    if (this.name == drive.VolumeLabel)
                     {
                         this.driveInfo = drive;
                         this.streamFolder = StreamFolder;
@@ -272,29 +266,30 @@ namespace PhotoFinish.Views
 
         void updateprogress(int thread, long completed, long total, string units)
         {
+            string remaining = string.Format("{0:0.0}% {1}", (completed * 100.0) / total, units);
                 Dispatcher.Invoke(() =>
                 {
                     if (thread == 0)
                     {
-                        Remaining0 = completed + " of " + total + " " + units;
+                        Remaining0 = remaining;
                         ProgressBar0.Maximum = total;
                         ProgressBar0.Value = completed;
                     }
                     else if (thread == 1)
                     {
-                        Remaining1 = completed + " of " + total + " " + units;
+                        Remaining1 = remaining;
                         ProgressBar1.Maximum = total;
                         ProgressBar1.Value = completed;
                     }
                     else if (thread == 2)
                     {
-                        Remaining2 = completed + " of " + total + " " + units;
+                        Remaining2 = remaining;
                         ProgressBar2.Maximum = total;
                         ProgressBar2.Value = completed;
                     }
                     else if (thread == 3)
                     {
-                        Remaining3 = completed + " of " + total + " " + units;
+                        Remaining3 = remaining;
                         ProgressBar3.Maximum = total;
                         ProgressBar3.Value = completed;
                     }
@@ -317,12 +312,15 @@ namespace PhotoFinish.Views
                         totalSize += (ulong)file.info.Length;
                     }
 
-                UploadedFiles.Add(dstFilename);
-                Sort(UploadedFiles);
+                if (dstFilename != null)
+                {
+                    UploadedFiles.Add(dstFilename);
+                    Sort(UploadedFiles);
 
-                var which = (name == "Start") ? 0 : 1;
+                    var which = (name == "Start") ? 0 : 1;
 
-                NativeVideo.OpenCardVideo(dstFilename, which, files.ToArray(), files.Count, totalSize, ProgressHandler);
+                    NativeVideo.OpenCardVideo(dstFilename, which, files.ToArray(), files.Count, totalSize, ProgressHandler);
+                }
             });
         }
     }

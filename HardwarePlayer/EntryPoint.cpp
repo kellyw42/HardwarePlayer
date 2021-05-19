@@ -4,8 +4,12 @@ extern "C"
 {
 #include "avcodec.h"
 #include "avformat.h"
+
+
 }
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include <stdio.h>
 #include <io.h>
@@ -22,8 +26,7 @@ extern "C"
 #include <GL/GL.h>
 #include <GL/glut.h>
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+
 
 #include <cuda.h>
 #include <cudaGL.h>
@@ -43,6 +46,8 @@ extern "C"
 #include "VideoSource1.h"
 #include "VideoDecoder.h"
 #include "VideoFrame.h"
+#include "Lanes.h"
+#include "Athlete.h"
 #include "AthleteDetector.h"
 #include "VideoConverter.h"
 #include "VideoBuffer.h"
@@ -63,6 +68,11 @@ extern "C" __declspec(dllexport) void SyncAudio(ReportSync sync_handler, BangHan
 	StartSync(sync_handler, bang_handler);
 }
 
+extern "C" __declspec(dllexport) void SetupLanes()
+{
+	PostThreadMessage(eventLoopThread, Messages::SETUPLANES, 0, 0);
+}
+
 extern "C" __declspec(dllexport) VideoSource1* LoadVideo(char* filename, progresshandler progress_handler)
 {
 	return new VideoSource1(filename, progress_handler);
@@ -81,6 +91,11 @@ extern "C" __declspec(dllexport) VideoBuffer* OpenVideo(VideoSource1* source, ev
 extern "C" __declspec(dllexport) void Close(VideoBuffer* buffer)
 {
 	PostThreadMessage(eventLoopThread, Messages::CLOSE, (WPARAM)buffer, 0);
+}
+
+extern "C" __declspec(dllexport) void Test(CUvideotimestamp pts)
+{
+	PostThreadMessage(eventLoopThread, Messages::TEST, (WPARAM)pts, 0);
 }
 
 extern "C" __declspec(dllexport) void GotoTime(VideoBuffer *newBuffer, CUvideotimestamp pts)
@@ -112,6 +127,16 @@ extern "C" __declspec(dllexport) void PrevFrame()
 extern "C" __declspec(dllexport) void VisualSearch(VideoBuffer * startPlayer, CUvideotimestamp pts)
 {
 	PostThreadMessage(eventLoopThread, Messages::VISUALSEARCH, (WPARAM)startPlayer, (LPARAM)pts);
+}
+
+extern "C" __declspec(dllexport) void Confirm()
+{
+	PostThreadMessage(eventLoopThread, Messages::CONFIRM, 0, 0);
+}
+
+extern "C" __declspec(dllexport) void FindStarts(CUvideotimestamp *times, VideoBuffer* startPlayer)
+{
+	PostThreadMessage(eventLoopThread, Messages::FINDSTARTS, (WPARAM)startPlayer, (LPARAM)times);
 }
 
 extern "C" __declspec(dllexport) void Rewind()

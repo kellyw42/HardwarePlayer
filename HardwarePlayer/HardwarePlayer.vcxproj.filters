@@ -73,6 +73,12 @@
     <ClInclude Include="AthleteDetector.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Athlete.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lanes.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ColourConversion.cu">

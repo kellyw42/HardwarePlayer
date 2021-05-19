@@ -61,10 +61,16 @@ namespace PhotoFinish
         public ObservableCollection<long> StartBangs { get; private set; }
         public ObservableCollection<long> FinishBangs { get; private set; }
 
-        public string CurrentMeet { get; set; }
+        private string currentMeet;
+        public string CurrentMeet
+        {
+            get { return currentMeet; }
+            set { currentMeet = value; OnPropertyRaised("CurrentMeet"); }
+        }
 
         public ICommand ViewStartCommand { get; set; }
         public ICommand ViewFinishCommand { get; set; }
+        public ICommand InitiateCommand { get; set; }
         public ICommand UploadVideoCommand { get; set; }
         public ICommand UploadHeatsCommand { get; set; }
         public ICommand GotoFinishTimeCommand { get; set; }
@@ -73,6 +79,8 @@ namespace PhotoFinish
         public ICommand StartCommand { get; set; }
         public ICommand FastForwardCommand { get; set; }
         public ICommand RewindCommand { get; set; }
+        public ICommand TestCommand { get; set; }
+        public ICommand FindStartsCommand { get; set; }
         public ICommand PlayCommand { get; set; }
         public ICommand PauseCommand { get; set; }
         public ICommand PlayPauseCommand { get; set; }
@@ -80,6 +88,7 @@ namespace PhotoFinish
         public ICommand DownCommand { get; set; }
         public ICommand PrevFrameCommand { get; set; }
         public ICommand NextFrameCommand { get; set; }
+        public ICommand ConfirmCommand { get; set; }
         public ICommand VisualSearchCommand { get; set; }
         public ICommand SaveCommand { get; set; }
         public ICommand ExitCommand { get; set; }
@@ -116,10 +125,13 @@ namespace PhotoFinish
 
             ViewStartCommand = new DelegateCommand(ViewStart);
             ViewFinishCommand = new DelegateCommand(ViewFinish);
+            InitiateCommand = new DelegateCommand(Initiate);
             UploadVideoCommand = new DelegateCommand(UploadVideo);
             UploadHeatsCommand = new DelegateCommand(UploadHeats);
             FinishLaneCommand = new DelegateCommand<int?>(FinishLane);
             SaveCommand = new DelegateCommand(SaveResults);
+            TestCommand = new DelegateCommand(Test);
+            FindStartsCommand = new DelegateCommand(FindStarts);
             ExitCommand = new DelegateCommand(Exit);
             MeetChangedCommand = new DelegateCommand(LoadMeet);
             StartCommand = new DelegateCommand(AddRace);
@@ -134,6 +146,7 @@ namespace PhotoFinish
             NextFrameCommand = new DelegateCommand(NextFrame);
             PrevFrameCommand = new DelegateCommand(PrevFrame);
             VisualSearchCommand = new DelegateCommand(VisualSearch);
+            ConfirmCommand = new DelegateCommand(Confirm);
             GotoFinishTimeCommand = new DelegateCommand<TimeStamp>(GotoFinishTime);
 
             Entries = new ObservableCollection<Entry>();
@@ -169,6 +182,8 @@ namespace PhotoFinish
 
         private void UploadHeats()
         {
+            File.Delete(Directory + "heats.txt");
+
             if (NativeVideo.UploadHeats(Directory + "heats.txt"))
             {
                 LoadHeats();
@@ -188,13 +203,40 @@ namespace PhotoFinish
                 NativeVideo.GotoTime(finishPlayer, NearestFrame(CurrentRace.CorrespondingFinishTime(StartTimeStamp.pts)));
         }
 
+        bool autoStart = false;
+
+        void progress(int a, long b, long c, string d)
+        {
+        }
+
+        private void Initiate()
+        {
+            CurrentMeet = DateTime.Now.ToString("yyyy-MM-dd");
+            UploadHeats();
+            autoStart = true;
+            UploadVideo();
+            autoStart = false;
+            System.Threading.Thread.Sleep(1000);
+
+            var sync = Entries[0].Race;
+            var file = sync.FinishFile;
+            System.Threading.Thread.Sleep(1000);
+            var finishSource = NativeVideo.LoadVideo(file, progress);
+            System.Threading.Thread.Sleep(1000);
+            finishPlayer = NativeVideo.OpenVideo(finishSource, FinishEventHandler, FinishTimeHandler, 1);
+            System.Threading.Thread.Sleep(1000);
+            NativeVideo.GotoTime(finishPlayer, sync.StartTime.pts + 1800 * 50 * 60);
+            System.Threading.Thread.Sleep(1000);
+            NativeVideo.SetupLanes();
+        }
+
         private void UploadVideo()
         {
             if (CurrentMeet == null)
                 return;
 
             var date = DateTime.Parse(CurrentMeet);
-            var window = new Views.UploadVideos(date);
+            var window = new Views.UploadVideos(date, autoStart);
             if (window.ShowDialog().Value)
             {
                 // add sync ...
@@ -272,6 +314,12 @@ namespace PhotoFinish
                         case 'R':
                             RewindCommand.Execute(null);
                             return;
+                        case 'B':
+                            FindStartsCommand.Execute(null);
+                            return;
+                        case 'T':
+                            TestCommand.Execute(null);
+                            return;
                         case 'P':
                             PlayPauseCommand.Execute(null);
                             return;
@@ -287,9 +335,11 @@ namespace PhotoFinish
                         case 0x28: // Down
                             DownCommand.Execute(null);
                             return;
-
                         case 'S':
                             this.VisualSearchCommand.Execute(null);
+                            return;
+                        case 'C':
+                            this.ConfirmCommand.Execute(null);
                             return;
                     }
                 else
@@ -298,6 +348,11 @@ namespace PhotoFinish
                         StopRepeatRight();
                 }
             });
+        }
+
+        private void Confirm()
+        {
+            NativeVideo.Confirm();
         }
 
         private void VisualSearch()
@@ -392,7 +447,7 @@ namespace PhotoFinish
             SaveRaces();
 
             NativeVideo.GotoTime(finishPlayer, NearestFrame(race.CorrespondingFinishTime(race.StartTime.pts) + skip));
-            //NativeVideo.PlayPause();
+            NativeVideo.Play();
         }
 
         private void Race_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -581,29 +636,31 @@ namespace PhotoFinish
 
             if (File.Exists(heatsFile))
             {
-                var file = new StreamReader(heatsFile);
-                var lastEvent = "???";
-
-                while (!file.EndOfStream)
+                using (var file = new StreamReader(heatsFile))
                 {
-                    var evnt = file.ReadLine().Substring(7);
-                    if (evnt == "Same")
-                        evnt = lastEvent;
-                    else
-                        lastEvent = evnt;
-                    var lanes = file.ReadLine().Split(',');
+                    var lastEvent = "???";
 
-                    Heat heat = new Heat(evnt);
-
-                    for (int lane = 0; lane < lanes.Length; lane++)
-                        if (lanes[lane].Length > 0)
-                            foreach (var athlete in lanes[lane].Split('.'))
-                                heat.athletes[lane].Add(Athlete.Lookup(int.Parse(athlete), this));
-
-                    if (heat.AthleteCount > 0)
+                    while (!file.EndOfStream)
                     {
-                        Heats.Add(heat);
-                        heat.PropertyChanged += Heat_PropertyChanged;
+                        var evnt = file.ReadLine().Substring(7);
+                        if (evnt == "Same")
+                            evnt = lastEvent;
+                        else
+                            lastEvent = evnt;
+                        var lanes = file.ReadLine().Split(',');
+
+                        Heat heat = new Heat(evnt);
+
+                        for (int lane = 0; lane < lanes.Length; lane++)
+                            if (lanes[lane].Length > 0)
+                                foreach (var athlete in lanes[lane].Split('.'))
+                                    heat.athletes[lane].Add(Athlete.Lookup(int.Parse(athlete), this));
+
+                        if (heat.AthleteCount > 0)
+                        {
+                            Heats.Add(heat);
+                            heat.PropertyChanged += Heat_PropertyChanged;
+                        }
                     }
                 }
             }
@@ -674,6 +731,32 @@ namespace PhotoFinish
             LoadMeet();
         }
 
+        private void FindStarts()
+        {
+            var startTimes = Races.Select(race => race.StartTime.pts).ToList();
+            startTimes.Add(0);
+            NativeVideo.FindStarts(startTimes.ToArray(), startPlayer);
+        }
+
+        int lastRace = 0;
+
+        private void Test()
+        {
+            lastRace++;
+            if (lastRace < Races.Count)
+            {
+                var race = Races[lastRace];
+                var best = TimeStamp.Pts(race.heat.BestTime);
+                var skip = (long)(0.9 * best);
+                NativeVideo.GotoTime(finishPlayer, NearestFrame(race.CorrespondingFinishTime(race.StartTime.pts) + skip));
+
+                var lastTime = race.finishTimes.Select(lane => lane.Select(result => result.pts).DefaultIfEmpty(0).Max()).Max();
+                NativeVideo.Test(lastTime);
+            }
+            else
+                Exit();
+        }
+
         private void SaveResults()
         {
             var emailWriter = new StreamWriter(Directory + @"\email.csv");
@@ -725,11 +808,20 @@ namespace PhotoFinish
 
         private void FinishLane(int? lane)
         {
+            if (!CurrentRace.heat.laned)
+                lane = 1;
+
             int i = 0;
             while (i < CurrentRace.finishTimes[lane.Value - 1].Count && CurrentRace.finishTimes[lane.Value - 1][i].pts < FinishTimeStamp.pts)
                 i++;
             CurrentRace.finishTimes[lane.Value - 1].Insert(i, new TimeStamp(FinishTimeStamp));
             SaveRaces();
+
+            var athletes = CurrentRace.heat.AthleteCount;
+            var times = CurrentRace.finishTimes.Sum(ln => ln.Count);
+
+            if (athletes == times)
+                VisualSearch();
         }
     }
 }   

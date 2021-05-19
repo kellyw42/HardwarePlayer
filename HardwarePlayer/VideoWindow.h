@@ -66,6 +66,24 @@ void Line(float x0, float y0, float z0, float x1, float y1, float z1)
 	glEnd();
 }
 
+void RenderFinishLine2()
+{
+	videoBuffer->lanes->SetVirtualMatrices();
+
+	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glLineWidth(2); // was 10
+
+	glBegin(GL_LINES);
+	glVertex3d(0, 8 * 1.22 + 34.69, 0);
+	glVertex3d(0, 0, 0);
+	glEnd();
+}
+
 void RenderFinishLine(float top, float bottom)
 {
 	glEnable(GL_LINE_SMOOTH);
@@ -82,10 +100,27 @@ void RenderFinishLine(float top, float bottom)
 	glEnd();
 }
 
-void RenderBox(RECT box, float red, float green, float blue)
+void RenderDot(float x, float y)
 {
 	glLineWidth(1);
-	glColor3f(red, green, blue);
+	glBegin(GL_QUADS);
+
+	x = x / display_width;
+	y = 1 - (y / display_height);
+
+	float w = 5.0f / display_width;
+	float h = 5.0f / display_height;
+
+	glVertex2f(x-w, y-h);
+	glVertex2f(x-w, y+h);
+	glVertex2f(x+w, y+h);
+	glVertex2f(x+w, y-h);
+	glEnd();
+}
+
+void RenderBox(RECT box)
+{
+	glLineWidth(1);
 	glBegin(GL_LINE_STRIP);
 	glVertex2f((float)box.left / display_width, 1.0f - (float)box.top / display_height);
 	glVertex2f((float)box.left / display_width, 1.0f - (float)box.bottom / display_height);
@@ -95,42 +130,153 @@ void RenderBox(RECT box, float red, float green, float blue)
 	glEnd();
 }
 
+
+void RenderLaneNumber(int lane, bool first) 
+{
+	if (lane < 1 || lane > 8)
+		return;
+
+	lane = 9 - lane;
+
+	float c, x, y;
+	float m = -videoBuffer->lanes->skew / 3;
+
+	if (first)
+		glColor4f(0, 0.5, 0, 0.5);
+	else
+		glColor4f(0, 1, 0, 0.5);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBegin(GL_QUADS);
+
+	c = lane * 1.22f;
+	x = -10;
+	y = m * x + c;
+	glVertex2f(x, y);
+
+	x = 0;
+	y = m * x + c;
+	glVertex2f(x, y);
+
+	c = (lane-1) * 1.22f;
+	x = 0;
+	y = m * x + c;
+	glVertex2f(x, y);
+	
+	x = -10;
+	y = m * x + c;
+	glVertex2f(x, y);
+
+	glEnd();
+}
+
+void LineSegment(int x0, int y0, int x1, int y1)
+{
+	Line(x0 / 1920.0f, 1 - (y0 / 1080.0f), 0, x1 / 1920.0f, 1 - (y1 / 1080.0f), 0);
+}
+
 extern int drawing;
+
+void SetColour(int i)
+{
+	switch (i) {
+	case 0:
+		glColor3f(1.0f, 0.0f, 0.0f);
+		break;
+	case 1:
+		glColor3f(0.0f, 1.0f, 0.0f);
+		break;
+	case 2:
+		glColor3f(0.0f, 0.0f, 1.0f);
+		break;
+	case 3:
+		glColor3f(1.0f, 1.0f, 0.0f);
+		break;
+	case 4:
+		glColor3f(1.0f, 0.0f, 1.0f);
+		break;
+	case 5:
+		glColor3f(0.0f, 1.0f, 1.0f);
+		break;
+	case 6:
+		glColor3f(1.0f, 0.0f, 0.0f);
+		break;
+	case 7:
+		glColor3f(0.0f, 1.0f, 0.0f);
+		break;
+	case 8:
+		glColor3f(0.0f, 0.0f, 1.0f);
+		break;
+	case 9:
+		glColor3f(1.0f, 1.0f, 0.0f);
+		break;
+	case 10:
+		glColor3f(1.0f, 0.0f, 1.0f);
+		break;
+	case 11:
+		glColor3f(0.0f, 1.0f, 1.0f);
+		break;
+	default:
+		glColor3f(0.0f, 0.0f, 0.0f);
+	}
+}
 
 void RenderOverlay(VideoFrame *frame)
 {
-	if (videoBuffer->top > 0)
-		RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
+	//if (videoBuffer->top)
+	//	RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
 
 	if (drawing == 2)
-		RenderBox(videoBuffer->cropRect, 0, 0, 1);
+	{
+		glColor3f(0, 0, 1); // blue
+		RenderBox(videoBuffer->cropRect);
+	}
 
 	if (videoBuffer->searchRect.right != videoBuffer->searchRect.left)
-		RenderBox(videoBuffer->searchRect, 1, 0, 0);
-
-/*
-	for (int box = 0; box < frame->boundingBoxes.rows; box++)
 	{
-		int subArea = frame->boundingBoxes.at<int>(box, cv::CC_STAT_AREA);
-		if (subArea < 1000)
-			continue;
-
-		int height = frame->boundingBoxes.at<int>(box, cv::CC_STAT_HEIGHT);
-		if (height < 50)
-			continue;
-
-		RECT bounding;
-
-		bounding.left = frame->boundingBoxes.at<int>(box, cv::CC_STAT_LEFT);
-		bounding.top = 2 * frame->boundingBoxes.at<int>(box, cv::CC_STAT_TOP);
-		bounding.right = bounding.left + frame->boundingBoxes.at<int>(box, cv::CC_STAT_WIDTH);
-		bounding.bottom = bounding.top + 2 * height;
-		RenderBox(bounding, 0, 0, 0);
+		glColor3f(1, 0, 0); // red
+		RenderBox(videoBuffer->searchRect);
 	}
+
+	int i = 0;
+
+	for (Athlete* athlete : frame->athletes)
+	{
+		SetColour(i);
+		RenderBox(athlete->boundingBox());
+
+		//LineSegment(athlete->centreX, (athlete->roi.y + athlete->top)    * 2, 
+		//	        athlete->centreX, (athlete->roi.y + athlete->bottom) * 2);
+		//LineSegment(athlete->roi.x + athlete->left,  athlete->centreY, 
+		//	        athlete->roi.x + athlete->right, athlete->centreY);
+/*
+		Athlete* pp = athlete;
+		int lane = (int)videoBuffer->lanes->getLane(athlete->feetX, athlete->feetY);
+		SetColour(lane);
+		RenderDot(athlete->feetX, athlete->feetY);
+		for (Athlete* previous = athlete->previous; previous != NULL; previous = previous->previous)
+		{
+			int lane = (int)videoBuffer->lanes->getLane(previous->feetX, previous->feetY);
+			SetColour(lane);
+			RenderDot(previous->feetX, previous->feetY);
+			SetColour(i);
+			LineSegment(pp->feetX, pp->feetY, previous->feetX, previous->feetY);
+			pp = previous;
+		}
 */
+		i++;
+	}
+
+	if (videoBuffer->isFinishCamera)
+		RenderFinishLine2();
+
+	for (Athlete* athlete : frame->athletes)
+		if (athlete->crossing > 1)
+			RenderLaneNumber(athlete->getLaneNumber(NULL), athlete->firstCrossing());
 }
 
-int UpdateFrameRate()
+void UpdateFrameRate()
 {
 	frameCount++;
 	high_resolution_clock::time_point now = high_resolution_clock::now();
@@ -141,81 +287,143 @@ int UpdateFrameRate()
 		int result = frameCount;
 		frameCount = 0;
 		start = now;
-		return result/10;
+
+		char msg[128];
+		sprintf(msg, "%d fps", result/10);
+		SetWindowTextA(hwnd, msg);
 	}
-	else
-		return -1;
 }
 
 GLuint prev_pbo = 0;
 
-
-void LineSegment(int x0, int y0, int x1, int y1)
+void RenderVirtualLanes()
 {
-	Line(x0 / 1920.0, y0 / 1080.0, 0, x1 / 1920.0, y1 / 1080.0, 0);
-}
+	videoBuffer->lanes->SetVirtualMatrices();
 
-float W = 20;
+	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-void Draw(float x, float y, int which)
-{
-	if (which & 1) LineSegment(x, y - W, x + W, y - W);
-	if (which & 2) LineSegment(x, y - 2*W, x + W, y - 2*W);
-	if (which & 4) LineSegment(x, y, x, y - W);
-	if (which & 8) LineSegment(x, y - W, x, y - 2*W);
-	if (which & 16) LineSegment(x+W, y, x + W, y - W);
-	if (which & 32) LineSegment(x+W, y - W, x + W, y - 2*W);
-	if (which & 64) LineSegment(x, y, x + W, y);
-	if (which & 128) LineSegment(x+W/2, y, x + W/2, y-2*W);
-	if (which & 256) LineSegment(x + W/2, y-1.5*W, x + W/2, y - 2*W);
-}
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glLineWidth(2); // was 10
 
-int bits[10] = { 126, 128, 91, 115, 53, 103, 111, 112, 127, 119 };
+	glBegin(GL_LINES);
+	glVertex3d(0, 8 * 1.22 + 34.69, 0);
+    glVertex3d(0, 0, 0);
+	glEnd();
 
-void DrawNumber(int x, int y, float num)
-{
-	x = -1920 + x;
-	y = 1080 - y;
-
-	char buffer[10];
-	sprintf(buffer, "%+4.2f", num);
-
-	for (int i = 0; i < strlen(buffer); i++)
+	for (int lane = 0; lane <= 8; lane++)
 	{
-		char ch = buffer[i];
-		if (ch == '-')
-			Draw(x, y, 1);
-		else if (ch == '+')
-			Draw(x, y, 129);
-		else if (ch == '.')
-			Draw(x, y, 256);
-		else
-			Draw(x, y, bits[(int)(ch - '0')]);
+		glBegin(GL_LINES);
 
-		x += W * 1.5;
+		float m = -videoBuffer->lanes->skew / 3;
+		float c = lane * 1.22f;
+
+		float x = -10;
+		float y = m * x + c;
+		glVertex3d(x, y, 0);
+
+		c = lane * 1.22f;
+		x = 0.5f;
+		y = m * x + c;
+		glVertex3d(x, y, 0);
+		glEnd();
 	}
 }
 
-float angle = 34.0;
-float aspect = 1920.0 / 1080.0;
+extern bool setup_lanes;
 
-float eyeX = 0, eyeY = -5.6, eyeZ = 2.7;
-float lookX = 0.2, lookY = 2.4*1.22, lookZ = 0;
-float upX = 0, upY = 0, upZ = 1;
+struct Character42 {
+	unsigned int TextureID;
+	unsigned int width, height;
+	unsigned int left, top;
+	int advance;
+};
+
+Character42 alphabet[128];
+
+// with respect to virtual coordinates ...
+void RenderChar(char c, float x, float y)
+{
+	Character42 ch = alphabet[c];
+
+	float aspect = (float)ch.width / ch.height;
+
+	float left = (float)ch.left / ch.height;
+
+	glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+
+	glBegin(GL_QUADS);
+
+	glTexCoord2f(0, 0);
+	glVertex3f(x+left, y+0.25, 0);
+
+	glTexCoord2f(0, 1);
+	glVertex3f(x+left, y-0.25, 0);
+
+	glTexCoord2f(1, 1);
+	glVertex3f(x+left+0.5*aspect, y-0.25, 0);
+
+	glTexCoord2f(1, 0);
+	glVertex3f(x+left+0.5*aspect, y+0.25, 0);
+
+	glEnd();
+}
+
+// with respect to screen coordinates ...
+void RenderChar2(const char* str, float x, float y)
+{
+	y = display_height - y;
+
+	glColor4f(0, 0, 1, 1);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_TEXTURE_2D);
+
+	float scale = 0.3;
+
+	for (const char* c = str; *c != NULL; c++)
+	{
+		Character42 ch = alphabet[*c];
+		glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+
+		float xpos = x + ch.left * scale;
+		float ypos = y - (ch.height - ch.top) * scale;
+
+		float w = ch.width * scale;
+		float h = ch.height * scale;
+
+		glBegin(GL_QUADS);
+
+		glTexCoord2f(0, 0);
+		glVertex2f(xpos / display_width, (ypos + h) / display_height);
+
+		glTexCoord2f(0, 1);
+		glVertex2f(xpos / display_width, ypos / display_height);
+
+		glTexCoord2f(1, 1);
+		glVertex2f((xpos + w) / display_width, ypos / display_height);
+
+		glTexCoord2f(1, 0);
+		glVertex2f((xpos + w) / display_width, (ypos + h) / display_height);
+
+		glEnd();
+
+		x += (ch.advance >> 6) * scale;
+	}
+
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_BLEND);
+}
+
 
 void RenderFrame(VideoFrame *frame)
 {
-	//Trace("RenderFrame(%ld)", frame->pts);
-	int rate = UpdateFrameRate();
-	if (rate > 0)
-	{
-		char msg[128];
-		sprintf(msg, "%d fps, frame %p, pts=%lld, hits=%d", rate, frame, frame->pts, frame->hits);
-		SetWindowTextA(hwnd, msg);
-	}
+	//UpdateFrameRate();
 
-	int width = videoBuffer->width;
-	int height = videoBuffer->height/2;
+	int width = frame->width;
+	int height = frame->height;
 
 	int dx = videoBuffer->decoder->decoderParams.display_area.left;
 	int dy = videoBuffer->decoder->decoderParams.display_area.top;
@@ -226,14 +434,12 @@ void RenderFrame(VideoFrame *frame)
 	float w = ((float)width) / display_width;
 	float h = ((float)height) / display_height;
 
-    //glViewport(0, 0, (int)width, (int)height);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 10.0);
 
-	// FixMe: only as required for small videos?
 	glColor3f(0.0f, 0.0f, 0.0f);
 	glBegin(GL_QUADS);
 		glVertex2f(0, 0);
@@ -266,46 +472,34 @@ void RenderFrame(VideoFrame *frame)
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
-	
-	RenderOverlay(frame);
-	//RenderFinishLine(videoBuffer->top, videoBuffer->bottom);
 
 /*
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	LineSegment(-10, 0, 10, -0);
-	LineSegment(0, -10, 0, 10);
-
-	DrawNumber(0, 0, eyeX);
-	DrawNumber(200, 0, eyeY);
-	DrawNumber(400, 0, eyeZ);
-	DrawNumber(0, 100, lookX);
-	DrawNumber(200, 100, lookY);
-	DrawNumber(400, 100, lookZ);
-	DrawNumber(0, 200, upX);
-	DrawNumber(200, 200, upY);
-	DrawNumber(400, 200, upZ);
-
-	DrawNumber(0, 300, angle);
-	DrawNumber(200, 300, aspect);
-
-	gluPerspective(angle, aspect, 1.0f, 20.0f);
-	
-	gluLookAt(eyeX, eyeY, eyeZ, lookX, lookY, lookZ, upX, upY, upZ); 
-
-	glBegin(GL_LINES);
-	glVertex3d(0, 8 * 1.22, 0);
-	glVertex3d(0, 0, 0);
-	glEnd();
-
-
-	for (int lane = 0; lane <= 8; lane++)
+	for (Athlete* athlete : frame->athletes)
 	{
-		glBegin(GL_LINES);
-		glVertex3d(-3000, lane * 1.22, 0);
-		glVertex3d(0, lane * 1.22, 0);
-		glEnd();
+		char data[128];
+		sprintf(data, "height: %4.2f, longest: %4.2f", athlete->virtualHeight, athlete->hitRatio);
+		RenderChar2(data, athlete->roi.x + athlete->right, (athlete->roi.y + athlete->top) * 2);
+	}
+*/
+	RenderOverlay(frame);
+
+	if (videoBuffer->isFinishCamera && setup_lanes)
+		RenderVirtualLanes();
+
+/*
+	if (videoBuffer->isFinishCamera)
+	{
+		videoBuffer->lanes->SetVirtualMatrices();
+		glColor4f(0, 0, 1, 1);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_TEXTURE_2D);
+
+		for (int lane = 1; lane <= 8; lane++)
+			RenderChar('0' + (9 - lane), -1, lane * 1.22 - 0.61); // was 0.-55
+
+		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_BLEND);
 	}
 */
 
@@ -316,17 +510,12 @@ void RenderFrame(VideoFrame *frame)
 	latest = frame;
 	videoBuffer->TimeEvent(frame->pts);
 
-	{
-		//char msg[128];
-		//sprintf(msg, "PTS %lld %d", frame->pts, frame->field);
-		//SetWindowTextA(hwnd, msg);
-	}
-	
+	//char msg[128];
+	//sprintf(msg, "pts=%lld hits=%d", frame->pts, frame->hits);
+	//SetWindowTextA(hwnd, msg);
 }
 
 LRESULT CALLBACK MyWindowProc2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
-
-
 
 void CreateWin32Window(int monitor)
 {
@@ -345,21 +534,12 @@ void CreateWin32Window(int monitor)
 	wc.style = CS_OWNDC;
 	RegisterClass(&wc);
 
-	//RECT rect;
-	//SetRect(&rect, x[monitor], y[monitor] + 1, x[monitor] + display_width, y[monitor] + 1 + display_height);
-	//AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-	hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_POPUP | WS_VISIBLE, x[monitor], y[monitor], display_width, display_height, NULL, NULL, hInstance, NULL);
-	//hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_OVERLAPPEDWINDOW, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
-	//SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
+	// WS_POPUP or WS_OVERLAPPEDWINDOW
+	hwnd = CreateWindow(TEXT("Wayne"), TEXT("Video"), WS_POPUP, x[monitor], y[monitor], display_width, display_height, NULL, NULL, hInstance, NULL);
 
 	ShowWindow(hwnd, SW_SHOW);
 
 	hdc = GetDC(hwnd);
-
-	RECT client_display;
-	GetClientRect(hwnd, &client_display);
-	//assert(display_width == client_display.right - client_display.left);
-	//assert(display_height == client_display.bottom - client_display.top);
 
 	PIXELFORMATDESCRIPTOR pfd = { 0 };
 	pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
@@ -388,4 +568,54 @@ void CreateSingleWindow()
 	InitCUDA();
 
 	InitOpenGL();
+
+	FT_Library ft;
+	FT_Init_FreeType(&ft);
+
+	FT_Face face;
+	FT_New_Face(ft, "fonts/arial.ttf", 0, &face);
+
+	FT_Set_Pixel_Sizes(face, 0, 48);
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+
+	for (unsigned char c = 0; c < 128; c++)
+	{
+		FT_Load_Char(face, c, FT_LOAD_RENDER);
+
+		// generate texture
+		unsigned int texture;
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_ALPHA,
+			face->glyph->bitmap.width,
+			face->glyph->bitmap.rows,
+			0,
+			GL_ALPHA,
+			GL_UNSIGNED_BYTE,
+			face->glyph->bitmap.buffer
+		);
+		// set texture options
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		Character42 character = {
+			texture,
+			face->glyph->bitmap.width, 
+			face->glyph->bitmap.rows, 
+			face->glyph->bitmap_left, 
+			face->glyph->bitmap_top, 
+			face->glyph->advance.x };
+
+		alphabet[c] = character;
+	}
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	FT_Done_Face(face);
+	FT_Done_FreeType(ft);
 }

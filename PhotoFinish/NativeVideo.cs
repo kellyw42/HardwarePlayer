@@ -29,6 +29,8 @@ namespace PhotoFinish
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Close(IntPtr videoBuffer);
 
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void FindStarts(long[] times, IntPtr player); 
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SyncAudio(ReportSync progress_handler, BangHandler bang_handler);
@@ -38,6 +40,12 @@ namespace PhotoFinish
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GotoTime(IntPtr player, long pts);
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetupLanes();   
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Test(long pts);
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void FastForward();
@@ -68,6 +76,9 @@ namespace PhotoFinish
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void VisualSearch(IntPtr startPlayer, long pts);
+
+        [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Confirm();
 
         [DllImport("HardwarePlayer.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GetAudio(String filename, [MarshalAs(UnmanagedType.LPArray, SizeConst = 48000)] float[] data, int start);

@@ -3,33 +3,60 @@
 class AthleteDetector
 {
 private:
-	cv::Ptr<cv::BackgroundSubtractor> pBackSub;
-	cv::cuda::GpuMat fgMask;
+	cv::Ptr<cv::BackgroundSubtractorMOG2> pBackSub;
+	Lanes *lanes;
+	cv::Rect roi, finishLine;
 
 public:
-	AthleteDetector()
+	AthleteDetector(Lanes *lanes)
 	{
-		pBackSub = cv::cuda::createBackgroundSubtractorMOG2(50, 11, false);
+		this->lanes = lanes;
+		roi = lanes->getRegionToTrack();
+		finishLine = lanes->getFinishLine(roi);
+
+		// TODO: parameter sweep testing ...
+		pBackSub = cv::cuda::createBackgroundSubtractorMOG2(50, 16, false); // was 50,  11
+		//pBackSub->setShadowThreshold(0.5);
+		//pBackSub->setShadowValue(0);
 	}
 
-	cv::cuda::GpuMat GetDetections(CUdeviceptr inputImagePtr, VideoFrame* frame, int width, int height)
+	void UpdateLanes()
 	{
+		roi = lanes->getRegionToTrack();
+		finishLine = lanes->getFinishLine(roi);
+	}
+
+	void GetDetections(VideoFrame *frame, CUdeviceptr inputImagePtr, int width, int height, cv::Mat *returnLabels, cv::Mat *sizes)
+	{
+		// get image into OpenCV matrix
 		cv::cuda::GpuMat inputImage(cv::Size(width, height), CV_8UC4, (void*)(inputImagePtr));
-		cv::Mat deviceFrame;
 
-		pBackSub->apply(inputImage, fgMask);
+		cv::cuda::GpuMat cropped(inputImage, roi);
 
-		return fgMask;
-		// not needed unless detecting and excluding shadows
-		//cv::cuda::threshold(fgMask, fgMask, 128, 255, cv::THRESH_BINARY);
+		// Background subtraction
+		cv::cuda::GpuMat foregroundGPU;
+		pBackSub->apply(cropped, foregroundGPU);
 
-		//cv::Mat tempFrame;
-		//fgMask.download(tempFrame);
+		// Download to CPU
+		cv::Mat foregroundCPU;
+		foregroundGPU.download(foregroundCPU);
 
-		//cv::Mat labels, stats, centroids;
-		// careful: do boundingBoxes get deallocated?
-		//int nLabels = cv::connectedComponentsWithStats(tempFrame, labels, frame->boundingBoxes, centroids, 4);
+		// Connected component analysis on CPU
+		cv::Mat labels, stats, centroids;
+		int numComponents = cv::connectedComponentsWithStats(foregroundCPU, labels, stats, centroids, 4);
 
-		//return 0;
+		// Treat large components as athletes
+		frame->athletes.clear();
+		for (int i = 1; i < numComponents; i++)
+			if (stats.at<int>(i, cv::CC_STAT_AREA) > 1000 && lanes->Height(roi, stats.row(i)) > 1.3) // minimum height!!!
+				frame->athletes.push_back(new Athlete(i, stats.row(i), centroids.row(i), labels, roi, lanes, finishLine));
+
+		//frame->hits = 0;
+		//for (Athlete* athlete : frame->athletes)
+		//	if (athlete->crossingFinish(finishLine) > 1)
+		//		frame->hits++;
+
+		*returnLabels = labels;
+		*sizes = stats.col(cv::CC_STAT_AREA);
 	}
 };

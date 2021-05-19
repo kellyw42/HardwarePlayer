@@ -19,6 +19,19 @@ extern "C" __global__ void NV12ToGrayScale(unsigned char *srcImage, size_t nSour
 	dstImage[y * nDestPitch + x] = (0xFF << 24) | (lum << 16) | (lum << 8) | lum;
 }
 
+extern "C" __global__ void Copy(unsigned int* srcImage, unsigned int* dstImage, int centreX, int centreY, int dstX, int dstY)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= 100 || y >= 50) return;
+
+	int dstPitch = 1920;
+	int srcPitch = 1440;
+
+	dstImage[(dstY * 64 + y) * dstPitch + (dstX * 128 + x)] = 
+		srcImage[(centreY - 32 + y) * srcPitch + (centreX - 64 + x)];
+}
 
 __device__ static void YUV2RGB(const unsigned int* yuvi, float* red, float* green, float* blue)
 {
@@ -115,6 +128,52 @@ extern "C" __global__ void NV12ToARGB(const unsigned char* srcImage, size_t nSou
 	int offset = (y >> 1) * width + x;
 	dstImage[offset] = RGBA_pack_10bit(red[0], green[0], blue[0], ((unsigned int)0xff << 24));
 	dstImage[offset + 1] = RGBA_pack_10bit(red[1], green[1], blue[1], ((unsigned int)0xff << 24));
+}
+
+extern "C" __global__ void FindFlash(unsigned int* image, int width, int height)
+{
+	const int x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= width || y >= height)
+		return;
+
+	unsigned int* mem = &image[y * width + x];
+
+	if (*mem == 0xFFFFFFFF) 
+		*mem = 0xFF000000;
+
+	//FF|red|green|blue
+}
+
+extern "C" __global__ void DrawComponents(unsigned int* image, int width, int height, unsigned int* componentLabels, unsigned int* sizes, int roiLeft, int roiTop, int roiWidth, int roiHeight, int step)
+{
+	const int x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (x >= width || y >= height)
+		return;
+
+	if (x < roiLeft || x >= roiLeft + roiWidth || y < roiTop || y >= roiTop + roiHeight)
+		return;
+
+	int component = componentLabels[(y - roiTop) * step + (x - roiLeft) ];
+
+	int left = componentLabels[(y - roiTop) * step + (x-1 - roiLeft)];
+	int right = componentLabels[(y - roiTop) * step + (x+1 - roiLeft)];
+	int top = componentLabels[(y-1 - roiTop) * step + (x - roiLeft)];
+	int bottom = componentLabels[(y + 1 - roiTop) * step + (x - roiLeft)];
+
+	int edge = component != left || component != right || component != top || component != bottom;
+	
+	if (component == 2048)
+		image[y * width + x] = 0xFFFFFF00;
+	else if (component == 4096)
+		image[y * width + x] = 0xFFFF00FF;
+	else if (component > 0 && sizes[component] > 1000 && edge)
+        image[y * width + x] = 0xFF0000FF;
+
+	//FF|red|green|blue
 }
 
 extern "C" __global__ void FinishLine3(const unsigned char* srcImage, size_t nSourcePitch,

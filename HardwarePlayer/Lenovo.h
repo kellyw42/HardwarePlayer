@@ -6,6 +6,7 @@
 
 HRESULT hr;
 CComPtr<IPortableDeviceContent>  content;
+CComPtr<IPortableDevice> device;
 
 bool FindDeviceContext(PWSTR match)
 {
@@ -36,7 +37,6 @@ bool FindDeviceContext(PWSTR match)
 	if (device_id == NULL)
 		return false;
 
-	CComPtr<IPortableDevice> device;
 	hr = CoCreateInstance(CLSID_PortableDeviceFTM, nullptr, CLSCTX_INPROC_SERVER, IID_IPortableDevice, (VOID**)&device);
 
 	CComPtr<IPortableDeviceValues> clientInfo;
@@ -194,6 +194,18 @@ extern "C" __declspec(dllexport) bool UploadHeats(PWSTR destFile)
 		return false;
 
 	Upload(File, destFile);
+
+	if (device != NULL)
+	{
+		device.Release();
+		device = NULL;
+	}
+
+	if (content != NULL)
+	{
+		content.Release();
+		content = NULL;
+	}
 
 	return true;
 }

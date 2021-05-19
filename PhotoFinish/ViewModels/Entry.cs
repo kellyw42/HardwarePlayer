@@ -101,7 +101,7 @@ namespace PhotoFinish
         {
             get
             {
-                if (race == null || race.IsSync)
+                if (race == null || heat == null || race.IsSync)
                     return null;
 
                 var inner = heat.athletes[0].Count;
